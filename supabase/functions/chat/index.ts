@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { ChatOpenAI } from "https://esm.sh/@langchain/openai@0.0.14";
-import { ChatPromptTemplate } from "https://esm.sh/@langchain/core@0.1.17/prompts";
+import { ChatOpenAI } from "https://esm.sh/@langchain/openai@0.2.6";
+import { ChatPromptTemplate } from "https://esm.sh/@langchain/core@0.2.27/prompts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
