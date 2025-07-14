@@ -47,8 +47,8 @@ serve(async (req) => {
     
     console.log('Bible text downloaded, length:', bibleText.length);
 
-    // Simple text splitting function
-    function splitTextIntoChunks(text: string, chunkSize: number = 1000, overlap: number = 200) {
+    // Simple text splitting function - smaller chunks to reduce processing load
+    function splitTextIntoChunks(text: string, chunkSize: number = 500, overlap: number = 100) {
       const chunks = [];
       let start = 0;
       
@@ -65,15 +65,19 @@ serve(async (req) => {
     const chunks = splitTextIntoChunks(bibleText);
     console.log('Text split into', chunks.length, 'chunks');
 
+    // Limit chunks to avoid resource limits - process first 100 chunks for now
+    const limitedChunks = chunks.slice(0, 100);
+    console.log('Processing limited chunks:', limitedChunks.length);
+
     // Create embeddings using OpenAI API directly
     console.log('Creating embeddings...');
     const embeddings = [];
     
-    // Process in batches to avoid rate limits
-    const batchSize = 10;
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const batch = chunks.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
+    // Process in smaller batches to avoid resource limits
+    const batchSize = 5;
+    for (let i = 0; i < limitedChunks.length; i += batchSize) {
+      const batch = limitedChunks.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(limitedChunks.length/batchSize)}`);
       
       const response = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
