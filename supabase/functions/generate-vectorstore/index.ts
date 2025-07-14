@@ -31,11 +31,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
     // Use the Bible text from your project's public folder
-    const bibleResponse = await fetch('https://vqexgyoqjrisytyncfqd.supabase.co/storage/v1/object/public/bible.txt');
+    const bibleResponse = await fetch('https://vqexgyoqjrisytyncfqd.supabase.co/bible.txt');
     
     if (!bibleResponse.ok) {
       // Fallback to Project Gutenberg
-      console.log('Falling back to Project Gutenberg...');
+      console.log('Local bible.txt not found, falling back to Project Gutenberg...');
       const fallbackResponse = await fetch('https://www.gutenberg.org/files/10/10-0.txt');
       if (!fallbackResponse.ok) {
         throw new Error('Failed to download Bible text from both sources');
