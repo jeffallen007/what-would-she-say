@@ -1,6 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Try LangChain with skypack CDN which is more Deno-friendly
+import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai?dts";
+import { ChatPromptTemplate } from "https://cdn.skypack.dev/@langchain/core/prompts?dts";
+
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
@@ -29,30 +33,29 @@ serve(async (req) => {
 
     console.log('Received prompt:', prompt);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7,
-      }),
+    // Initialize LangChain OpenAI LLM
+    const llm = new ChatOpenAI({
+      openAIApiKey: openAIApiKey,
+      modelName: 'gpt-4o-mini',
+      temperature: 0.7,
+      maxTokens: 1000,
     });
 
-    if (!response.ok) {
-      console.error('OpenAI API error:', response.status, response.statusText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
+    // Create prompt template
+    const promptTemplate = ChatPromptTemplate.fromMessages([
+      ["system", "You are a helpful assistant."],
+      ["user", "{input}"]
+    ]);
 
-    const data = await response.json();
-    const generatedText = data.choices[0].message.content;
+    // Create the chain
+    const chain = promptTemplate.pipe(llm);
+
+    // Generate response
+    const response = await chain.invoke({
+      input: prompt
+    });
+
+    const generatedText = response.content;
 
     console.log('Generated response:', generatedText);
 
