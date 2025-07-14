@@ -1,1 +1,4 @@
 project_id = "vqexgyoqjrisytyncfqd"
+
+[functions.generate-vectorstore]
+verify_jwt = false
