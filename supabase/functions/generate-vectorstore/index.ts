@@ -2,11 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Import LangChain modules using skypack CDN
-import { RecursiveCharacterTextSplitter } from "https://cdn.skypack.dev/@langchain/textsplitters?dts";
-import { OpenAIEmbeddings } from "https://cdn.skypack.dev/@langchain/openai?dts";
-import { MemoryVectorStore } from "https://cdn.skypack.dev/langchain/vectorstores/memory?dts";
-
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -24,38 +19,93 @@ serve(async (req) => {
 
   try {
     console.log('Starting vectorstore generation...');
+    console.log('OpenAI API Key present:', !!openAIApiKey);
+    console.log('Supabase URL present:', !!supabaseUrl);
+    console.log('Service Key present:', !!supabaseServiceKey);
+
+    if (!openAIApiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is required');
+    }
 
     // Initialize Supabase client with service role key
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    // Download the Bible text file
-    const bibleResponse = await fetch('https://www.gutenberg.org/files/10/10-0.txt');
-    const bibleText = await bibleResponse.text();
+    // Use the Bible text from your project's public folder
+    const bibleResponse = await fetch('https://vqexgyoqjrisytyncfqd.supabase.co/storage/v1/object/public/bible.txt');
+    
+    if (!bibleResponse.ok) {
+      // Fallback to Project Gutenberg
+      console.log('Falling back to Project Gutenberg...');
+      const fallbackResponse = await fetch('https://www.gutenberg.org/files/10/10-0.txt');
+      if (!fallbackResponse.ok) {
+        throw new Error('Failed to download Bible text from both sources');
+      }
+      var bibleText = await fallbackResponse.text();
+    } else {
+      var bibleText = await bibleResponse.text();
+    }
     
     console.log('Bible text downloaded, length:', bibleText.length);
 
-    // Split the text into chunks
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
+    // Simple text splitting function
+    function splitTextIntoChunks(text: string, chunkSize: number = 1000, overlap: number = 200) {
+      const chunks = [];
+      let start = 0;
+      
+      while (start < text.length) {
+        const end = Math.min(start + chunkSize, text.length);
+        chunks.push(text.slice(start, end));
+        start = end - overlap;
+        if (start >= text.length) break;
+      }
+      
+      return chunks;
+    }
 
-    const docs = await textSplitter.createDocuments([bibleText]);
-    console.log('Text split into', docs.length, 'chunks');
+    const chunks = splitTextIntoChunks(bibleText);
+    console.log('Text split into', chunks.length, 'chunks');
 
-    // Create embeddings
-    const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: openAIApiKey,
-      modelName: "text-embedding-3-small",
-    });
-
-    // Create vectorstore
-    console.log('Creating vectorstore...');
-    const vectorStore = await MemoryVectorStore.fromDocuments(docs, embeddings);
+    // Create embeddings using OpenAI API directly
+    console.log('Creating embeddings...');
+    const embeddings = [];
     
-    // Serialize the vectorstore for storage
-    const vectorStoreData = await vectorStore.serialize();
-    console.log('Vectorstore created and serialized');
+    // Process in batches to avoid rate limits
+    const batchSize = 10;
+    for (let i = 0; i < chunks.length; i += batchSize) {
+      const batch = chunks.slice(i, i + batchSize);
+      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
+      
+      const response = await fetch('https://api.openai.com/v1/embeddings', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: batch,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Store embeddings with their text
+      for (let j = 0; j < batch.length; j++) {
+        embeddings.push({
+          text: batch[j],
+          embedding: data.data[j].embedding,
+        });
+      }
+      
+      // Small delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    console.log('Embeddings created, count:', embeddings.length);
 
     // Create storage bucket if it doesn't exist
     const { error: bucketError } = await supabase.storage.createBucket('vectorstores', {
@@ -69,7 +119,16 @@ serve(async (req) => {
       throw bucketError;
     }
 
-    // Store the vectorstore in Supabase Storage
+    // Store the embeddings data in Supabase Storage
+    const vectorStoreData = {
+      embeddings: embeddings,
+      metadata: {
+        model: 'text-embedding-3-small',
+        created: new Date().toISOString(),
+        chunks: embeddings.length
+      }
+    };
+
     const { error: uploadError } = await supabase.storage
       .from('vectorstores')
       .upload('jesus-bible-vectorstore.json', JSON.stringify(vectorStoreData), {
@@ -87,7 +146,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         message: 'Vectorstore generated successfully',
-        chunks: docs.length,
+        chunks: embeddings.length,
         storageLocation: 'vectorstores/jesus-bible-vectorstore.json'
       }),
       {
