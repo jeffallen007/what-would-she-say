@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Send, User, Bot } from "lucide-react";
 
 interface Message {
@@ -17,6 +18,7 @@ const Index = () => {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState("openai-gpt-4o");
 
   const handleSubmit = async () => {
     if (!prompt.trim() || isLoading) return;
@@ -34,7 +36,7 @@ const Index = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke('chat', {
-        body: { prompt: userMessage.content }
+        body: { prompt: userMessage.content, persona: selectedPersona }
       });
 
       if (error) {
@@ -147,6 +149,24 @@ const Index = () => {
           </div>
         </ScrollArea>
         
+        {/* Persona Selection */}
+        <Card className="p-4 mb-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-muted-foreground">
+              Talk with:
+            </label>
+            <Select value={selectedPersona} onValueChange={setSelectedPersona}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Talk with ..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
+                <SelectItem value="jesus">Jesus</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+
         {/* Input Area */}
         <Card className="p-4">
           <div className="flex gap-2">
