@@ -65,19 +65,17 @@ serve(async (req) => {
     const chunks = splitTextIntoChunks(bibleText);
     console.log('Text split into', chunks.length, 'chunks');
 
-    // Limit chunks to avoid resource limits - process first 100 chunks for now
-    const limitedChunks = chunks.slice(0, 100);
+    // Limit chunks to avoid resource limits - process only 20 chunks for now
+    const limitedChunks = chunks.slice(0, 20);
     console.log('Processing limited chunks:', limitedChunks.length);
 
     // Create embeddings using OpenAI API directly
     console.log('Creating embeddings...');
     const embeddings = [];
     
-    // Process in smaller batches to avoid resource limits
-    const batchSize = 5;
-    for (let i = 0; i < limitedChunks.length; i += batchSize) {
-      const batch = limitedChunks.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(limitedChunks.length/batchSize)}`);
+    // Process one chunk at a time to minimize resource usage
+    for (let i = 0; i < limitedChunks.length; i++) {
+      console.log(`Processing chunk ${i + 1}/${limitedChunks.length}`);
       
       const response = await fetch('https://api.openai.com/v1/embeddings', {
         method: 'POST',
@@ -87,26 +85,25 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           model: 'text-embedding-3-small',
-          input: batch,
+          input: [limitedChunks[i]],
         }),
       });
 
       if (!response.ok) {
+        console.error(`OpenAI API error for chunk ${i}: ${response.status}`);
         throw new Error(`OpenAI API error: ${response.status}`);
       }
 
       const data = await response.json();
       
-      // Store embeddings with their text
-      for (let j = 0; j < batch.length; j++) {
-        embeddings.push({
-          text: batch[j],
-          embedding: data.data[j].embedding,
-        });
-      }
+      // Store embedding with its text
+      embeddings.push({
+        text: limitedChunks[i],
+        embedding: data.data[0].embedding,
+      });
       
-      // Small delay to respect rate limits
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay to respect rate limits and reduce resource usage
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
 
     console.log('Embeddings created, count:', embeddings.length);
