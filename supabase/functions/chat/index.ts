@@ -43,7 +43,7 @@ serve(async (req) => {
       openAIApiKey: openAIApiKey,
       modelName: 'gpt-4o-mini',
       temperature: 0.7,
-      maxTokens: 1000,
+      maxTokens: 500,
     });
 
     let systemMessage = "You are a helpful assistant.";
