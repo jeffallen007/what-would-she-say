@@ -26,11 +26,19 @@ const personaConfig = {
   }
 };
 
+const getDefaultPersona = () => {
+  const hostname = window.location.hostname;
+  if (hostname === 'whatwouldjesussay.app') {
+    return 'jesus';
+  }
+  return 'openai-gpt-4o';
+};
+
 const Index = () => {
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedPersona, setSelectedPersona] = useState("openai-gpt-4o");
+  const [selectedPersona, setSelectedPersona] = useState(getDefaultPersona());
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const getHeaderTitle = () => {
