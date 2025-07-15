@@ -28,9 +28,34 @@ const personaConfig = {
 
 const getDefaultPersona = () => {
   const hostname = window.location.hostname;
-  if (hostname === 'whatwouldjesussay.app') {
+  const referrer = document.referrer;
+  const currentUrl = window.location.href;
+  
+  // Debug logging
+  console.log('Current hostname:', hostname);
+  console.log('Document referrer:', referrer);
+  console.log('Current URL:', currentUrl);
+  
+  // Check if referrer contains the Jesus domain (in case of redirect)
+  if (referrer.includes('whatwouldjesussay.app')) {
+    console.log('Detected Jesus domain from referrer');
     return 'jesus';
   }
+  
+  // Check current hostname (in case no redirect)
+  if (hostname === 'whatwouldjesussay.app') {
+    console.log('Detected Jesus domain from hostname');
+    return 'jesus';
+  }
+  
+  // Check for URL parameters that might indicate source
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('source') === 'jesus') {
+    console.log('Detected Jesus domain from URL parameter');
+    return 'jesus';
+  }
+  
+  console.log('Defaulting to GPT-4o');
   return 'openai-gpt-4o';
 };
 
