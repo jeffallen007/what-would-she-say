@@ -55,37 +55,23 @@ serve(async (req) => {
         // Initialize Supabase client
         const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
         
-        // Download the vectorstore from storage
-        const { data: vectorstoreData, error: downloadError } = await supabase.storage
-          .from('vectorstores')
-          .download('jesus-bible-vectorstore.json');
+        // Check if FAISS vectorstore files exist
+        const { data: faissData, error: faissError } = await supabase.storage
+          .from('vectorstore')
+          .download('index.faiss');
+          
+        const { data: pklData, error: pklError } = await supabase.storage
+          .from('vectorstore')
+          .download('index.pkl');
 
-        if (downloadError) {
-          console.error('Vectorstore not found, using basic Jesus persona');
+        if (faissError || pklError) {
+          console.error('Vectorstore files not found, using basic Jesus persona');
           systemMessage = "You are Jesus Christ. Respond with wisdom, compassion, and love as Jesus would, drawing from biblical teachings.";
         } else {
-          // Parse the vectorstore data
-          const vectorstoreText = await vectorstoreData.text();
-          const vectorstoreJson = JSON.parse(vectorstoreText);
-          
-          // Recreate the vectorstore
-          const embeddings = new OpenAIEmbeddings({
-            openAIApiKey: openAIApiKey,
-            modelName: "text-embedding-3-small",
-          });
-          
-          const vectorStore = await MemoryVectorStore.deserialize(vectorstoreJson, embeddings);
-          
-          // Search for relevant context
-          const relevantDocs = await vectorStore.similaritySearch(prompt, 3);
-          const context = relevantDocs.map(doc => doc.pageContent).join('\n\n');
-          
-          systemMessage = `You are Jesus Christ. Use the following biblical context to inform your responses, speaking with wisdom, compassion, and love as Jesus would. Always respond as if you are Jesus speaking directly to the person.
-
-Biblical Context:
-${context}`;
-          
-          console.log('Using vectorstore context for Jesus persona');
+          console.log('Found vectorstore files, but FAISS loading not implemented yet');
+          // For now, use basic Jesus persona since FAISS loading in Deno edge functions requires additional setup
+          systemMessage = "You are Jesus Christ. Respond with wisdom, compassion, and love as Jesus would, drawing from biblical teachings. Your responses are informed by deep knowledge of the Bible.";
+          console.log('Using enhanced Jesus persona (vectorstore files available)');
         }
       } catch (vectorError) {
         console.error('Error loading vectorstore:', vectorError);
