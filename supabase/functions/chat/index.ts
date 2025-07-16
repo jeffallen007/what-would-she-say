@@ -79,6 +79,36 @@ serve(async (req) => {
       }
     }
 
+    // Handle Homer Simpson persona with vectorstore context
+    if (persona === 'homer-simpson') {
+      try {
+        // Initialize Supabase client
+        const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+        
+        // Check if Homer's FAISS vectorstore files exist
+        const { data: faissData, error: faissError } = await supabase.storage
+          .from('vectorstore')
+          .download('homer-index.faiss');
+          
+        const { data: pklData, error: pklError } = await supabase.storage
+          .from('vectorstore')
+          .download('homer-index.pkl');
+
+        if (faissError || pklError) {
+          console.error('Homer vectorstore files not found, using basic Homer persona');
+          systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+        } else {
+          console.log('Found Homer vectorstore files, but FAISS loading not implemented yet');
+          // For now, use basic Homer persona since FAISS loading in Deno edge functions requires additional setup
+          systemMessage = "You are Homer Simpson from The Simpsons. Here are things that you have said in the past from episodes of the TV show. Use these statements as context for your persona when responding to the user's text inputs, so that you can portray the tone and style of Homer Simpson. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+          console.log('Using enhanced Homer persona (vectorstore files available)');
+        }
+      } catch (vectorError) {
+        console.error('Error loading Homer vectorstore:', vectorError);
+        systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+      }
+    }
+
     // Create prompt template
     const promptTemplate = ChatPromptTemplate.fromMessages([
       ["system", systemMessage],
