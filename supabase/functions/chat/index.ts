@@ -17,6 +17,102 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Cache for Chroma vectorstore data
+let chromaCache: { embeddings: number[][], texts: string[], metadata: any[] } | null = null;
+
+// Cosine similarity function
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  const dotProduct = vecA.reduce((sum, a, i) => sum + a * vecB[i], 0);
+  const magnitudeA = Math.sqrt(vecA.reduce((sum, a) => sum + a * a, 0));
+  const magnitudeB = Math.sqrt(vecB.reduce((sum, b) => sum + b * b, 0));
+  return dotProduct / (magnitudeA * magnitudeB);
+}
+
+// Load and parse Chroma vectorstore data
+async function loadChromaData(supabase: any): Promise<{ embeddings: number[][], texts: string[], metadata: any[] } | null> {
+  if (chromaCache) {
+    return chromaCache;
+  }
+
+  try {
+    console.log('Loading Chroma vectorstore from storage...');
+    
+    // Try to load the Chroma SQLite database
+    const { data: chromaDb, error: chromaError } = await supabase.storage
+      .from('vectorstore')
+      .download('chroma_langchain_db/chroma.sqlite3');
+
+    if (chromaError) {
+      console.error('Failed to load Chroma database:', chromaError);
+      return null;
+    }
+
+    // For now, we'll implement a simplified approach by reading pre-exported JSON data
+    // In a full implementation, you would parse the SQLite database
+    const { data: jsonData, error: jsonError } = await supabase.storage
+      .from('vectorstore')
+      .download('chroma_langchain_db/embeddings.json');
+
+    if (jsonError) {
+      console.log('No pre-exported JSON found, would need to parse SQLite database');
+      return null;
+    }
+
+    const jsonText = new TextDecoder().decode(jsonData);
+    const chromaData = JSON.parse(jsonText);
+    
+    chromaCache = {
+      embeddings: chromaData.embeddings,
+      texts: chromaData.texts,
+      metadata: chromaData.metadata || []
+    };
+
+    console.log(`Loaded ${chromaCache.embeddings.length} embeddings from Chroma vectorstore`);
+    return chromaCache;
+  } catch (error) {
+    console.error('Error loading Chroma data:', error);
+    return null;
+  }
+}
+
+// Get relevant context from Chroma vectorstore using RAG
+async function getChromaContext(supabase: any, query: string): Promise<string | null> {
+  try {
+    // Load Chroma data
+    const chromaData = await loadChromaData(supabase);
+    if (!chromaData) {
+      return null;
+    }
+
+    // Generate embedding for the query
+    const embeddings = new OpenAIEmbeddings({
+      openAIApiKey: openAIApiKey
+    });
+
+    const queryEmbedding = await embeddings.embedQuery(query);
+
+    // Find top 3 most similar documents
+    const similarities = chromaData.embeddings.map((embedding, index) => ({
+      index,
+      similarity: cosineSimilarity(queryEmbedding, embedding),
+      text: chromaData.texts[index]
+    }));
+
+    // Sort by similarity and take top 3
+    similarities.sort((a, b) => b.similarity - a.similarity);
+    const topDocs = similarities.slice(0, 3);
+
+    // Combine the text content
+    const context = topDocs.map(doc => doc.text).join('\n\n');
+    
+    console.log('Retrieved context with similarities:', topDocs.map(d => d.similarity));
+    return context;
+  } catch (error) {
+    console.error('Error getting Chroma context:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -49,33 +145,31 @@ serve(async (req) => {
     let systemMessage = "You are a helpful assistant.";
     let contextualPrompt = prompt;
 
-    // Handle Jesus persona with vectorstore context
+    // Handle Jesus persona with Chroma vectorstore RAG
     if (persona === 'jesus') {
       try {
         // Initialize Supabase client
         const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
         
-        // Check if FAISS vectorstore files exist
-        const { data: faissData, error: faissError } = await supabase.storage
-          .from('vectorstore')
-          .download('index.faiss');
-          
-        const { data: pklData, error: pklError } = await supabase.storage
-          .from('vectorstore')
-          .download('index.pkl');
+        // Get relevant context using Chroma vectorstore
+        const context = await getChromaContext(supabase, prompt);
+        
+        if (context) {
+          systemMessage = `You are Jesus Christ. Speak with wisdom, compassion, and love.
+Your words should reflect the teachings of the Bible and draw from scripture directly.
 
-        if (faissError || pklError) {
-          console.error('Vectorstore files not found, using basic Jesus persona');
-          systemMessage = "You are Jesus Christ. Respond with wisdom, compassion, and love as Jesus would, drawing from biblical teachings.";
+Here are some Bible verses to guide your response:
+${context}
+
+Now respond to the following question with biblical wisdom and compassion.`;
+          console.log('Using Chroma RAG context for Jesus persona');
         } else {
-          console.log('Found vectorstore files, but FAISS loading not implemented yet');
-          // For now, use basic Jesus persona since FAISS loading in Deno edge functions requires additional setup
-          systemMessage = "You are Jesus Christ. Respond with wisdom, compassion, and love as Jesus would, drawing from biblical teachings. Your responses are informed by deep knowledge of the Bible.";
-          console.log('Using enhanced Jesus persona (vectorstore files available)');
+          console.log('Chroma context not available, using basic Jesus persona');
+          systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful.";
         }
       } catch (vectorError) {
-        console.error('Error loading vectorstore:', vectorError);
-        systemMessage = "You are Jesus Christ. Respond with wisdom, compassion, and love as Jesus would, drawing from biblical teachings.";
+        console.error('Error loading Chroma vectorstore:', vectorError);
+        systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful.";
       }
     }
 
