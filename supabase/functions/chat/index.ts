@@ -197,6 +197,11 @@ Use these statements as context for your persona when responding to the user's t
       }
     }
 
+    // Handle Barbie persona (no vectorstore)
+    if (persona === 'barbie') {
+      systemMessage = "You are Barbie. Speak like Barbie from the movie Barbie. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or will.";
+    }
+
     // Create prompt template
     const promptTemplate = ChatPromptTemplate.fromMessages([
       ["system", systemMessage],
