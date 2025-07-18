@@ -258,9 +258,9 @@ const Index = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="jesus">Jesus</SelectItem>
-                  <SelectItem value="homer-simpson">Homer Simpson</SelectItem>
                   <SelectItem value="barbie">Barbie</SelectItem>
+                  <SelectItem value="homer-simpson">Homer Simpson</SelectItem>
+                  <SelectItem value="jesus">Jesus</SelectItem>
                 </SelectContent>
               </Select>
             </div>
