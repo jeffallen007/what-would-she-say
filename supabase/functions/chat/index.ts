@@ -17,8 +17,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Cache for Chroma vectorstore data
-let chromaCache: { embeddings: number[][], texts: string[], metadata: any[] } | null = null;
 
 // Cosine similarity function
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
@@ -28,58 +26,61 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
   return dotProduct / (magnitudeA * magnitudeB);
 }
 
-// Load and parse Chroma vectorstore data
-async function loadChromaData(supabase: any): Promise<{ embeddings: number[][], texts: string[], metadata: any[] } | null> {
-  if (chromaCache) {
-    return chromaCache;
+// Cache for multiple persona vectorstore data
+const personaCaches: { [key: string]: { embeddings: number[][], texts: string[], metadata: any[] } } = {};
+
+// Generic function to load and parse Chroma vectorstore data for any persona
+async function loadChromaData(supabase: any, persona: string): Promise<{ embeddings: number[][], texts: string[], metadata: any[] } | null> {
+  if (personaCaches[persona]) {
+    return personaCaches[persona];
   }
 
   try {
-    console.log('Loading Chroma vectorstore from storage...');
+    console.log(`Loading Chroma vectorstore for ${persona} from storage...`);
     
-    // Try to load the Chroma SQLite database
-    const { data: chromaDb, error: chromaError } = await supabase.storage
-      .from('vectorstore')
-      .download('chroma_langchain_db/chroma.sqlite3');
-
-    if (chromaError) {
-      console.error('Failed to load Chroma database:', chromaError);
+    // Determine the directory based on persona
+    let directoryPath = '';
+    if (persona === 'jesus') {
+      directoryPath = 'chroma_langchain_db/embeddings.json';
+    } else if (persona === 'homer-simpson') {
+      directoryPath = 'homer_chroma_db/embeddings.json';
+    } else {
+      console.log(`No Chroma vectorstore configured for persona: ${persona}`);
       return null;
     }
 
-    // For now, we'll implement a simplified approach by reading pre-exported JSON data
-    // In a full implementation, you would parse the SQLite database
+    // Load the JSON embeddings data
     const { data: jsonData, error: jsonError } = await supabase.storage
       .from('vectorstore')
-      .download('chroma_langchain_db/embeddings.json');
+      .download(directoryPath);
 
     if (jsonError) {
-      console.log('No pre-exported JSON found, would need to parse SQLite database');
+      console.log(`No Chroma vectorstore found for ${persona} at ${directoryPath}`);
       return null;
     }
 
     const jsonText = new TextDecoder().decode(jsonData);
     const chromaData = JSON.parse(jsonText);
     
-    chromaCache = {
+    personaCaches[persona] = {
       embeddings: chromaData.embeddings,
       texts: chromaData.texts,
       metadata: chromaData.metadata || []
     };
 
-    console.log(`Loaded ${chromaCache.embeddings.length} embeddings from Chroma vectorstore`);
-    return chromaCache;
+    console.log(`Loaded ${personaCaches[persona].embeddings.length} embeddings for ${persona}`);
+    return personaCaches[persona];
   } catch (error) {
-    console.error('Error loading Chroma data:', error);
+    console.error(`Error loading Chroma data for ${persona}:`, error);
     return null;
   }
 }
 
-// Get relevant context from Chroma vectorstore using RAG
-async function getChromaContext(supabase: any, query: string): Promise<string | null> {
+// Generic function to get relevant context from Chroma vectorstore using RAG
+async function getChromaContext(supabase: any, query: string, persona: string): Promise<string | null> {
   try {
-    // Load Chroma data
-    const chromaData = await loadChromaData(supabase);
+    // Load Chroma data for the specific persona
+    const chromaData = await loadChromaData(supabase, persona);
     if (!chromaData) {
       return null;
     }
@@ -105,10 +106,10 @@ async function getChromaContext(supabase: any, query: string): Promise<string | 
     // Combine the text content
     const context = topDocs.map(doc => doc.text).join('\n\n');
     
-    console.log('Retrieved context with similarities:', topDocs.map(d => d.similarity));
+    console.log(`Retrieved context for ${persona} with similarities:`, topDocs.map(d => d.similarity));
     return context;
   } catch (error) {
-    console.error('Error getting Chroma context:', error);
+    console.error(`Error getting Chroma context for ${persona}:`, error);
     return null;
   }
 }
@@ -139,20 +140,20 @@ serve(async (req) => {
       openAIApiKey: openAIApiKey,
       modelName: 'gpt-4o-mini',
       temperature: 0.7,
-      maxTokens: 500,
+      maxTokens: 350,
     });
 
     let systemMessage = "You are a helpful assistant.";
     let contextualPrompt = prompt;
 
-    // Handle Jesus persona with Chroma vectorstore RAG
+    // Initialize Supabase client for vectorstore operations
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    
+    // Handle personas with Chroma vectorstore RAG
     if (persona === 'jesus') {
       try {
-        // Initialize Supabase client
-        const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
-        
         // Get relevant context using Chroma vectorstore
-        const context = await getChromaContext(supabase, prompt);
+        const context = await getChromaContext(supabase, prompt, persona);
         
         if (context) {
           systemMessage = `You are Jesus Christ. Speak with wisdom, compassion, and love.
@@ -168,37 +169,30 @@ Now respond to the following question with biblical wisdom and compassion.`;
           systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful.";
         }
       } catch (vectorError) {
-        console.error('Error loading Chroma vectorstore:', vectorError);
+        console.error('Error loading Chroma vectorstore for Jesus:', vectorError);
         systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful.";
       }
     }
 
-    // Handle Homer Simpson persona with vectorstore context
+    // Handle Homer Simpson persona with Chroma vectorstore RAG
     if (persona === 'homer-simpson') {
       try {
-        // Initialize Supabase client
-        const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+        // Get relevant context using Chroma vectorstore
+        const context = await getChromaContext(supabase, prompt, persona);
         
-        // Check if Homer's FAISS vectorstore files exist
-        const { data: faissData, error: faissError } = await supabase.storage
-          .from('vectorstore')
-          .download('homer-index.faiss');
-          
-        const { data: pklData, error: pklError } = await supabase.storage
-          .from('vectorstore')
-          .download('homer-index.pkl');
+        if (context) {
+          systemMessage = `You are Homer Simpson from The Simpsons. Here are things that you have said in the past from episodes of the TV show:
 
-        if (faissError || pklError) {
-          console.error('Homer vectorstore files not found, using basic Homer persona');
-          systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+${context}
+
+Use these statements as context for your persona when responding to the user's text inputs, so that you can portray the tone and style of Homer Simpson. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.`;
+          console.log('Using Chroma RAG context for Homer Simpson persona');
         } else {
-          console.log('Found Homer vectorstore files, but FAISS loading not implemented yet');
-          // For now, use basic Homer persona since FAISS loading in Deno edge functions requires additional setup
-          systemMessage = "You are Homer Simpson from The Simpsons. Here are things that you have said in the past from episodes of the TV show. Use these statements as context for your persona when responding to the user's text inputs, so that you can portray the tone and style of Homer Simpson. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
-          console.log('Using enhanced Homer persona (vectorstore files available)');
+          console.log('Chroma context not available, using basic Homer Simpson persona');
+          systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
         }
       } catch (vectorError) {
-        console.error('Error loading Homer vectorstore:', vectorError);
+        console.error('Error loading Chroma vectorstore for Homer Simpson:', vectorError);
         systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
       }
     }
