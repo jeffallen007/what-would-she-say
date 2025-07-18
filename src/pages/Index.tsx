@@ -21,7 +21,7 @@ const personaConfig = {
     headerName: '(s)he'
   },
   'jesus': { 
-    dropdownLabel: 'Jesus Christ', 
+    dropdownLabel: 'Jesus', 
     headerName: 'Jesus' 
   },
   'homer-simpson': { 
@@ -258,7 +258,7 @@ const Index = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="jesus">Jesus Christ</SelectItem>
+                  <SelectItem value="jesus">Jesus</SelectItem>
                   <SelectItem value="homer-simpson">Homer Simpson</SelectItem>
                   <SelectItem value="barbie">Barbie</SelectItem>
                 </SelectContent>
