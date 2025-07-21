@@ -2,7 +2,7 @@
 
 ## Project summary
 
-What Would (S)he Say is a Generative AI chatbot application that showcases multiple "personas". You can ask the chatbot anything you would like and it will respond in the persona's tone, style, and demeanor of the persona you have selected.
+What Would (S)he Say is a Generative AI chatbot application that showcases multiple "personas". You can ask the chatbot anything you would like and it will respond in the selected persona's tone, style, and demeanor.
 
 Example persona's include fictional characters such as Homer Simpson and Barbie, as well as historical figures such as Jesus.
 
@@ -60,6 +60,8 @@ This project is built with:
 - Tailwind CSS
 
 ## What platforms were used to build this application?
+
+This application was built by vibe coding the front end UI on Lovable, connecting the backend using Supabase, and generating vectorstores, RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
 
 - VS Code
 - Lovable.dev
