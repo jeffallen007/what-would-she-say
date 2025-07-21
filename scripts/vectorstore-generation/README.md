@@ -148,7 +148,7 @@ Sample terminal script to generate 'jesus' vectorstore:
 
 ```python export_vectorstore_json "vector-store/chroma_langchain_db" output_name="embeddings.json"```
 
-## How can I test querying a vectorstore?
+## 🛠 How can I test querying a vectorstore?
 
 To test querying a vectorstore from your IDE terminal, you can run generate_llm_response.py with the persona and a question as input parameters.
 
