@@ -1,12 +1,20 @@
-# Welcome to your Lovable project
+# Welcome to What Would (S)he Say
 
-## Project info
+## Project summary
 
-**URL**: https://lovable.dev/projects/f1572220-763e-4b3a-b3d1-53746ab6c5ee
+What Would (S)he Say is a Generative AI chatbot application that showcases multiple "personas". You can ask the chatbot anything you would like and it will respond in the persona's tone, style, and demeanor of the persona you have selected.
 
-## How can I edit this code?
+Example persona's include fictional characters such as Homer Simpson and Barbie, as well as historical figures such as Jesus.
 
-There are several ways of editing your application.
+## Live product in action
+
+To see the live product in action, simply go to the following URL in your web browser.
+
+**URL**: https://whatwouldshesay.com
+
+## How does this application work?
+
+TBD.
 
 **Use Lovable**
 
@@ -36,38 +44,27 @@ npm i
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## How was this application developed?
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+TBD
 
 ## What technologies are used for this project?
 
 This project is built with:
 
+- Python
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
 
-## How can I deploy this project?
+## What platforms were used to build this application?
 
-Simply open [Lovable](https://lovable.dev/projects/f1572220-763e-4b3a-b3d1-53746ab6c5ee) and click on Share -> Publish.
+- VS Code
+- Lovable.dev
+- Supabase.com
 
-## Can I connect a custom domain to my Lovable project?
+## Credits:
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+TBD.
