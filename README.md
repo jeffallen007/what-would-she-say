@@ -14,7 +14,39 @@ To see the live product in action, simply go to the following URL in your web br
 
 ## How does this application work?
 
-TBD.
+### 1. Vector Stores
+Vector Stores for each persona are pre-generated using Langchain and OpenAI. The source data for the Vector Stores consist of fictional character scripts, historical documents, or archives of dialogue.
+
+### 2. Runtime
+- When a user selects a "persona" via the drop down menu of the web application, a retriever is generated for the corresponding persona's Vector Store.
+- When the user enters a question / prompt into the Chat window and clicks Submit, the application:
+    1. creates "context" by querying the retriever using a similarity match,
+    2. creates a RAG Chain with user question, context retrieved, and persona specific prompt,
+    3. invokes this RAG Chain request to OpenAI, and
+    4. displays the llm response to the user.
+
+## How was this application developed?
+
+The GUI and edge functions were vibe coded using Lovable. The Vector Store generation was coded in python using VS Code.
+
+## What platforms were used to build this application?
+
+This application was built by vibe coding the front end UI on Lovable, connecting the backend using Supabase, and generating vectorstores, RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
+
+- VS Code
+- Lovable.dev
+- Supabase.com
+
+## What technologies are used for this project?
+
+This project is built with:
+
+- Python
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
 **Use Lovable**
 
@@ -44,29 +76,10 @@ npm i
 npm run dev
 ```
 
-## How was this application developed?
-
-TBD
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Python
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## What platforms were used to build this application?
-
-This application was built by vibe coding the front end UI on Lovable, connecting the backend using Supabase, and generating vectorstores, RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
-
-- VS Code
-- Lovable.dev
-- Supabase.com
-
 ## Credits:
 
-TBD.
+The following sources were utilized as content sources for generating a Vector Store for each persona.
+
+"Jesus":    The Bible, American King James Version. Sourced from: [Open Bible](https://openbible.com/textfiles/akjv.txt)
+"Barbie":   Barbie (The Movie), by Greta Gerwig & Noah Baumbach. Sourced from: [No Film School](https://nofilmschool.com/barbie-script#)
+"Homer":    Dialogue Lines of The Simpsons. Acknowledgement to Pierre Megret for generating this file via a Kaggle project. Downstrem acknowledgements to Todd W Schnieder and Bukun (see Kaggle link for more info). Sourced from: [Pierre Megret - on Kaggle](https://www.kaggle.com/datasets/pierremegret/dialogue-lines-of-the-simpsons?select=simpsons_dataset.csv)
