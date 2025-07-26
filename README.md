@@ -48,6 +48,8 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Updating or enhancing this project
+
 **Use Lovable**
 
 Simply visit the [Lovable Project](https://lovable.dev/projects/f1572220-763e-4b3a-b3d1-53746ab6c5ee) and start prompting.
@@ -56,7 +58,7 @@ Or start your own project at [Lovable.dev](https://lovable.dev)
 
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and develop via a new branch.
+If you want to work locally using your own IDE, you can clone this repo and create a new fork.
 
 The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
 
@@ -76,7 +78,7 @@ npm i
 npm run dev
 ```
 
-## Credits:
+## Credits
 
 The following sources were utilized as content sources for generating a Vector Store for each persona.
 
