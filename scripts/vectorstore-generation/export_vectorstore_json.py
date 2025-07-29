@@ -32,23 +32,26 @@ def export_json(vectorstore_path, output_name="embeddings.json"):
     collection = vectorstore._collection
     results = collection.get(include=["documents", "embeddings", "metadatas"])
 
-    # 4. Format data for JSON export
-    output = []
+    # 4. Format data for JSON export in the format expected by the edge function
+    output = {
+        "embeddings": [],
+        "texts": [],
+        "metadata": []
+    }
+    
     for doc_id, doc, embedding, metadata in zip(
         results['ids'],
         results['documents'],
         results['embeddings'],
         results['metadatas']
         ):
-        output.append({
-            "id": doc_id,
-            "document": doc,
-            "embedding": embedding if isinstance(embedding, list) else embedding.tolist(),
-            "metadata": metadata
-        })
+        output["embeddings"].append(embedding if isinstance(embedding, list) else embedding.tolist())
+        output["texts"].append(doc)
+        output["metadata"].append(metadata or {})
 
     # 5. Save to JSON file
     output_location = f"{vectorstore_path}/{output_name}"
     with open(output_location, "w") as f:
         json.dump(output, f, indent=2)
     print(f"Embeddings exported to {output_location} as {output_name}")
+    print(f"Exported {len(output['embeddings'])} embeddings, {len(output['texts'])} texts")

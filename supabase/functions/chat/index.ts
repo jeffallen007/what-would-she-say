@@ -59,7 +59,7 @@ async function loadChromaData(supabase: any, persona: string): Promise<{ embeddi
       return null;
     }
 
-    const jsonText = new TextDecoder().decode(jsonData);
+    const jsonText = await jsonData.text();
     const chromaData = JSON.parse(jsonText);
     
     personaCaches[persona] = {
