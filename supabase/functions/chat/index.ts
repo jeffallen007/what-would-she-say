@@ -140,7 +140,7 @@ serve(async (req) => {
       openAIApiKey: openAIApiKey,
       modelName: 'gpt-4o-mini',
       temperature: 0.7,
-      maxTokens: 250,
+      maxTokens: 325,
     });
 
     let systemMessage = "You are a helpful assistant.";
@@ -158,6 +158,7 @@ serve(async (req) => {
         if (context) {
           systemMessage = `You are Jesus Christ. Speak with wisdom, compassion, and love.
 Your words should reflect the teachings of the Bible and draw from scripture directly.
+Respond in 7 sentences or less, offering wisdom with compassion.
 
 Here are some Bible verses to guide your response:
 ${context}
@@ -166,7 +167,7 @@ Now respond to the following question with biblical wisdom and compassion.`;
           console.log('Using Chroma RAG context for Jesus persona');
         } else {
           console.log('Chroma context not available, using basic Jesus persona');
-          systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful.";
+          systemMessage = "You are Jesus Christ. Speak with wisdom, compassion, and love. Your words should reflect the teachings of the Bible and draw from scripture when appropriate. Offer guidance that is both spiritually meaningful and practically helpful. Respond in 7 sentences or less, offering wisdom with compassion.";
         }
       } catch (vectorError) {
         console.error('Error loading Chroma vectorstore for Jesus:', vectorError);
@@ -181,7 +182,8 @@ Now respond to the following question with biblical wisdom and compassion.`;
         const context = await getChromaContext(supabase, prompt, persona);
         
         if (context) {
-          systemMessage = `You are Homer Simpson from The Simpsons. Here are things that you have said in the past from episodes of the TV show:
+          systemMessage = `You are Homer Simpson from The Simpsons. Respond in 1-5 sentences with Homer's humor and simplicity.
+Here are things that you have said in the past from episodes of the TV show:
 
 ${context}
 
@@ -189,7 +191,7 @@ Use these statements as context for your persona when responding to the user's t
           console.log('Using Chroma RAG context for Homer Simpson persona');
         } else {
           console.log('Chroma context not available, using basic Homer Simpson persona');
-          systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+          systemMessage = "You are Homer Simpson from The Simpsons. Respond in 1-5 sentences with Homer's humor and simplicity. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
         }
       } catch (vectorError) {
         console.error('Error loading Chroma vectorstore for Homer Simpson:', vectorError);
@@ -199,7 +201,7 @@ Use these statements as context for your persona when responding to the user's t
 
     // Handle Barbie persona (no vectorstore)
     if (persona === 'barbie') {
-      systemMessage = "You are Barbie. Speak like Barbie from the movie Barbie. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or will.";
+      systemMessage = "You are Barbie. Speak like Barbie from the movie Barbie. Respond in 3-5 sentences with Barbie's positivity and enthusiasm. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or will.";
     }
 
     // Create prompt template
