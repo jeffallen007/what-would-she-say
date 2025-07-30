@@ -25,3 +25,6 @@ dist-ssr
 
 # Ignore vectorstore databases
 scripts/vectorstore-generation/vector-store/
+
+# Ignore environment files
+scripts/vectorstore-generation/.env
