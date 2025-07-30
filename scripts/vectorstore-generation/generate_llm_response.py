@@ -27,11 +27,14 @@ def generate_llm_response(vs_directory, persona, question):
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
+    print(f"openai_api_key: {openai_api_key}")  ### for debugging purposes
+
     # 2. Define LLM
     llm = ChatOpenAI(
         model_name="gpt-4o-mini",
         temperature=0.7,
-        max_tokens=500
+        max_tokens=500,
+        api_key=openai_api_key
         )
 
     # 3. Load vectorstore

@@ -96,11 +96,17 @@ The following personas are currently live and active.
 
 This is the default option and does not use a vectorstore. When a user selects this option, the application invokes a prompt using 'gpt-4o-mini' without additional persona context.
 
-The persona vector stores can be creating using the following Python functions:
+### Custom Personas
+
+The persona vector stores can be created using the following Python functions:
 
 ```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
 
 ```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
+
+** Note: the terminal commands in this section assume you are running them from the vectorstore-generation folder. Use this command to change directory:
+
+```cd scripts/vectorstore-generation```
 
 ### Barbie
 
@@ -137,9 +143,11 @@ Sample terminal script to generate 'jesus' vectorstore:
 To test querying a vectorstore from your IDE terminal, you can run generate_llm_response.py with the persona and a question as input parameters.
 
 Python Function:
+
 ```generate_llm_response(vs_directory, persona, question)```
 
 Here is an example terminal command using the persona barbie.
+
 ```python3 generate_llm_response.py ./vector-store/barbie_chroma_db barbie "what is the meaning of love?"```
 
 ## 🧑‍💻 How can I upload the vectorstore data to Supabase?
