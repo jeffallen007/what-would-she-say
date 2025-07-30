@@ -96,57 +96,41 @@ The following personas are currently live and active.
 
 This is the default option and does not use a vectorstore. When a user selects this option, the application invokes a prompt using 'gpt-4o-mini' without additional persona context.
 
+The persona vector stores can be creating using the following Python functions:
+
+```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
+
+```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
+
 ### Barbie
 
 The 'Barbie' persona uses the script of Barbie the Movie to do a similarity search for relevant dialogue. The vectorstore is generate using a .pdf version of the movie script.
 
-Python Function:
-
-```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
-
-```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
-
 Sample terminal script to generate 'barbie' vectorstore:
 
-```python generate_vectorstore_chroma "source_files/barbie_final_shooting_script.pdf" "barbie" "./vector-store/barbie_chroma_db"```
+```python3 generate_vectorstore_chroma.py source-files/barbie_final_shooting_script.pdf barbie ./vector-store/barbie_chroma_db```
 
-```python export_vectorstore_json "vector-store/barbie_chroma_db" output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/barbie_chroma_db output_name="embeddings.json"```
 
 ### Homer Simpson
 
-The 'Homer' persona uses the lines that were spoken by Homer Simpson in the tv show The Simpsons. The vectorstore is generated using a .csv file of lines spoken by Homer and other characters.
-
-Python Functions:
-
-```download_simpsons_dialogue()```
-
-```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
-
-```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
+The 'Homer' persona uses dialogue spoken by Homer Simpson in the tv show The Simpsons. The vectorstore is generated using a .csv file of lines spoken by Homer and other characters.
 
 Sample terminal script to generate 'homer' vectorstore:
 
-```python download_simpsons_dialogue```
+```python3 generate_vectorstore_chroma.py source-files/simpsons_dataset.csv homer ./vector-store/homer_chroma_db```
 
-```python generate_vectorstore_chroma "source_files/homer_lines.txt" "homer" "./vector-store/homer_chroma_db"```
-
-```python export_vectorstore_json "vector-store/homer_chroma_db" output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/homer_chroma_db output_name="embeddings.json"```
 
 ### Jesus
 
 The 'Jesus' persona uses The Bible to do a similarity search for matching passages. The vectorstore is generating using a .txt version of The Bible.
 
-Python Function:
-
-```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
-
-```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
-
 Sample terminal script to generate 'jesus' vectorstore:
 
-```python generate_vectorstore_chroma "source_files/bible.txt" "bible" "./vector-store/chroma_langchain_db"```
+```python3 generate_vectorstore_chroma.py source-files/bible.txt bible ./vector-store/chroma_langchain_db```
 
-```python export_vectorstore_json "vector-store/chroma_langchain_db" output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/chroma_langchain_db output_name="embeddings.json"```
 
 ## 🛠 How can I test querying a vectorstore?
 
@@ -156,7 +140,7 @@ Python Function:
 ```generate_llm_response(vs_directory, persona, question)```
 
 Here is an example terminal command using the persona barbie.
-```python generate_llm_response "vector-store/barbie_chroma_db" "barbie" "what is the meaning of love?"```
+```python3 generate_llm_response.py ./vector-store/barbie_chroma_db barbie "what is the meaning of love?"```
 
 ## 🧑‍💻 How can I upload the vectorstore data to Supabase?
 After you have generated the vectorstore data, it needs to be uploaded into the Supabase storage bucket called 'vectorstore'.
@@ -169,3 +153,10 @@ To do so:
 5. Drag the entire directory of the new persona's vectorstore into the vectorstore bucket.
     - Naming convention should be something like:  persona_chroma_db
     - This should have already been established in the steps above.
+
+## Credit and Acknowledgement
+The following sources were utilized as content sources for generating a Vector Store for each persona.
+
+- "Jesus":    The Bible, American King James Version. Sourced from: [Open Bible](https://openbible.com/textfiles/akjv.txt)
+- "Barbie":   Barbie (The Movie), by Greta Gerwig & Noah Baumbach. Sourced from: [No Film School](https://nofilmschool.com/barbie-script#)
+- "Homer":    Dialogue Lines of The Simpsons. Acknowledgement to Pierre Megret for generating this file via a Kaggle project. Downstrem acknowledgements to Todd W Schnieder and Bukun (see Kaggle link for more info). Sourced from: [Pierre Megret - on Kaggle](https://www.kaggle.com/datasets/pierremegret/dialogue-lines-of-the-simpsons?select=simpsons_dataset.csv)
