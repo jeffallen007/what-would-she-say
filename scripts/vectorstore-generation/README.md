@@ -21,35 +21,36 @@ The python scripts need to be executed and the vectorstores deployed to a storag
 ├── utilities
 ├── vectorstore-generation
 |    ├── source-files
-|    |    ├── barbie_the_movie.pdf
+|    |    ├── barbie_final_shooting_script.pdf
 |    |    ├── bible.txt
-|    |    ├── homer_dialogue.csv
+|    |    ├── simpsons_dataset.csv
 |    |    ├── ...
 |    ├── vectorstore
 |    |    ├── barbie_chroma_db
 |    |    ├── homer_chroma_db
-|    |    ├── chroma_langchain_db
+|    |    ├── bible_chroma_db
 |    |    ├── ...
-|    ├── main.py
-|    ├── download_simpsons_dialogue.py
+|    ├── main.py (in progress, use generate_vectorstore_chroma.py instead)
+|    ├── delete_vectorstore.py
 |    ├── export_vectorstore_json.py
-|    ├── generate_character_lines.py
+|    ├── generate_document_objects.py
 |    ├── generate_llm_response.py
 |    ├── generate_vectorstore_chroma.py
 |    ├── my_prompts.py
+|    ├── query_vectorstore_x_docs.py
 |    ├── query_vectorstore.py
 |    ├── requirements.txt
 |    └── README.md
 ```
 
-- main.py: Generates full pipeline of vectorstores for existing personas. Can be used to regenerate all vectorstores if needed.
-- download_simpsons_dialogue.py:  Used to download the quotes by Homer Simpson from a Kaggle dataset.
+- main.py: Generates full pipeline of vectorstores for existing personas. Can be used to regenerate all vectorstores if needed. (in progress, use generate_vectorstore_chroma.py instead)
+- delete_vectorstore.py: **CAUTION** Deletes an existing vectorstore. Should only be used when re-generating a vector store from scratch.
 - export_vectorstore_json.py:  Used to convert the vectorstore into a JSON formatted file for integration with edge function.
-- generate_character_lines.py:  Used to extract and parse character dialogue from a CSV file of structure 'character_name', 'dialogue_line'
 - generate_llm_response.py:  Used to test the vectorstore implementation by submitting a user question, thereby generating a RAG prompt with the context and question, and finally sending to llm and returning a response.
-- generate_vectorstore_chroma.py:  This is the core script for this module, in that it takes an input file of unstructured data and generates a vectorstore for later retrieval.
-- my_prompts.py:  This file contains custom prompts for each persona. This should be updated when a new persona is added.
-- query_vectorstore.py:  This is an alternative script for query a specific persona vectorstore.
+- generate_vectorstore_chroma.py:  This is the core script for this module, in that it takes an input file of structure / unstructured data and generates a vectorstore for later retrieval.
+- my_prompts.py: This file contains custom prompts for each persona. This should be updated when a new persona is added.
+- query_vectorstore_x_docs.py: Can be used for debugging vector stores after creation. Allows you to query the first N Document objects in a vector store.
+- query_vectorstore.py: An alternative script for querying a specific persona vectorstore.
 - requirements.txt: System requirements to properly run the scripts in this repository.
 - README.md: this file.
 
@@ -74,17 +75,18 @@ Pre-Generation Requirements:
 1. Identify the source content to be used (e.g. a script, collection of lines, the Bible, etc).
 2. Determine the file type of the source content (e.g. pdf, csv, txt, etc).
 3. Choose a persona name (this will be the name of a new directory that stores the vectorstore)
-    - Examples: 'barbie', 'homer-simpson'
+    - Examples: 'barbie', 'homer'
 4. Write your script commands with parameters.
 
 Generating the Vectorstore:
 1. Run commands to import source content as necessary (see examples below).
-2. Run generate_vectorstore_chroma.py with input parameters as follows:
-    - doc_path is the directory_name of the source content.
+2. If a vector store exists for the persona, delete vector store before generating.
+3. Run generate_vectorstore_chroma.py with input parameters as follows:
+    - doc_path is the directory name of the source content.
     - output_name is the persona name.
     - output_directory is the directory_name where the new vectorstore data will be created.
 3. Run export_vectorstore_json.py with input parameters as follows:
-    - vectorstore_path is the directory_name where the vectorstore files are saved to.
+    - vectorstore_path is the directory name where the vectorstore files are saved to.
 
 Note: this process may vary depending on the file type and data structure of the source content.
 
@@ -110,7 +112,7 @@ The persona vector stores can be created using the following Python functions:
 
 ### Barbie
 
-The 'Barbie' persona uses the script of Barbie the Movie to do a similarity search for relevant dialogue. The vectorstore is generate using a .pdf version of the movie script.
+The 'Barbie' persona uses the script of Barbie the Movie to do a similarity search for relevant dialogue. The vector store is generated using a .pdf version of the movie script.
 
 Sample terminal script to generate 'barbie' vectorstore:
 
@@ -134,13 +136,13 @@ The 'Jesus' persona uses The Bible to do a similarity search for matching passag
 
 Sample terminal script to generate 'jesus' vectorstore:
 
-```python3 generate_vectorstore_chroma.py source-files/bible.txt bible ./vector-store/chroma_langchain_db```
+```python3 generate_vectorstore_chroma.py source-files/bible.txt bible ./vector-store/bible_chroma_db```
 
-```python3 export_vectorstore_json.py ./vector-store/chroma_langchain_db output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/bible_chroma_db output_name="embeddings.json"```
 
-## 🛠 How can I test querying a vectorstore?
+## 🛠 How can I test retrieve vectorstore --> get llm response?
 
-To test querying a vectorstore from your IDE terminal, you can run generate_llm_response.py with the persona and a question as input parameters.
+To test retrieving a persona vectorstore and invoking RAG chain response from your IDE terminal, you can run generate_llm_response.py with the vectorstore directory path, a persona, and a question as input parameters.
 
 Python Function:
 
@@ -150,10 +152,38 @@ Here is an example terminal command using the persona barbie.
 
 ```python3 generate_llm_response.py ./vector-store/barbie_chroma_db barbie "what is the meaning of love?"```
 
+## 🛠 How can I test a direct query of a vector store?
+
+To test querying a vectorstore from your IDE terminal, you can run query_vectorstore.py with a query, the directory path, a persona, and a character as input parameters.
+
+Note: persona defines the collection within vector store and character is used for filtering the vector store retrieval process.
+
+Python Function:
+
+```query_vectorstore(query, vectorstore_path, persona, character)```
+
+Here is an example terminal command using the persona homer.
+
+```python3 query_vectorstore.py "what is the meaning of love?" ./vector-store/homer_chroma_db homer, "Homer Simpson"```
+
+## 🛠 If I am not getting results from querying a vector store, how can I debug?
+
+To debug a vector store query, you can get the first N Document objects from a vector store by calling query_vectorstore_x_docs.py from your IDE terminal. Parameters to include are: the vector store directory path, a persona, a character name, and the number of items you want to return.
+
+Python Function:
+
+```query_vectorstore_x_docs(vectorstore_path, persona, character, num_docs)```
+
+Here is an example terminal command using the persona homer.
+
+```python3 query_vectorstore_x_docs.py ./vector-store/homer_chroma_db homer "Homer Simpson" 10```
+
 ## 🧑‍💻 How can I upload the vectorstore data to Supabase?
+
 After you have generated the vectorstore data, it needs to be uploaded into the Supabase storage bucket called 'vectorstore'.
 
 To do so:
+
 1. Login to Supabase.
 2. Navigate to the relevant project.
 3. Navigate to Storage using the left hand navigation menu.

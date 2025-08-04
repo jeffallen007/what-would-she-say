@@ -28,3 +28,13 @@ scripts/vectorstore-generation/vector-store/
 
 # Ignore environment files
 scripts/vectorstore-generation/.env
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore virtual environment
+venv/
+
+# Ignore environment variables
+.env

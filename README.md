@@ -17,10 +17,12 @@ To see the live product in action, simply go to the following URL in your web br
 ### 1. Vector Stores
 Vector Stores for each persona are pre-generated using Langchain and OpenAI. The source data for the Vector Stores consist of fictional character scripts, historical documents, or archives of dialogue.
 
+For more info on the vector store generation process, see: [README.md in scripts/vectorstore-generation](https://github.com/jeffallen007/what-would-she-say/blob/main/scripts/vectorstore-generation/README.md)
+
 ### 2. Runtime
 - When a user selects a "persona" via the drop down menu of the web application, a retriever is generated for the corresponding persona's Vector Store.
 - When the user enters a question / prompt into the Chat window and clicks Submit, the application:
-    1. creates "context" by querying the retriever using a similarity match,
+    1. creates "context" by querying the retriever using a similarity match (and in some cases filtering by "character"),
     2. creates a RAG Chain with user question, context retrieved, and persona specific prompt,
     3. invokes this RAG Chain request to OpenAI, and
     4. displays the llm response to the user.
