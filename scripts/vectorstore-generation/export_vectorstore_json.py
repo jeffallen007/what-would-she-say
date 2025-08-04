@@ -2,31 +2,30 @@
 
 import os
 import json
-import numpy as np
+import argparse
 from dotenv import load_dotenv
-from langchain_community.vectorstores import Chroma
-from langchain_openai.embeddings.base import OpenAIEmbeddings
-from langchain_openai.chat_models.base import ChatOpenAI
+from langchain_chroma.vectorstores import Chroma
+from langchain_openai.embeddings import OpenAIEmbeddings
 
-def export_json(vectorstore_path, output_name="embeddings.json"):
+def export_json(vectorstore_path, persona, output_name="embeddings.json"):
     """
     Exports the embeddings from a Chroma vector store to a JSON file.
 
-    Args:
+    Parameters:
         vectorstore_path (str): Path to the Chroma vector store.
         output_file (str): Path to the output JSON file.
     """
-
-    print(f"vectorstore_path: {vectorstore_path}")
-
-    # Define embedding function.
     # 1. Load API key from .env
     load_dotenv()
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
-    # 2. Load the vectorstore.
+    # 2. Define the embedding function and load the vectorstore.
     embeddings = OpenAIEmbeddings(api_key=openai_api_key)
-    vectorstore = Chroma(persist_directory=vectorstore_path, embedding_function=embeddings)
+    vectorstore = Chroma(
+        persist_directory=vectorstore_path,
+        collection_name=persona,
+        embedding_function=embeddings
+        )
 
     # 3. Retrieve all documents and their embeddings
     collection = vectorstore._collection
@@ -38,7 +37,7 @@ def export_json(vectorstore_path, output_name="embeddings.json"):
         "texts": [],
         "metadata": []
     }
-    
+
     for doc_id, doc, embedding, metadata in zip(
         results['ids'],
         results['documents'],
@@ -53,5 +52,27 @@ def export_json(vectorstore_path, output_name="embeddings.json"):
     output_location = f"{vectorstore_path}/{output_name}"
     with open(output_location, "w") as f:
         json.dump(output, f, indent=2)
+
+    # debugging output
     print(f"Embeddings exported to {output_location} as {output_name}")
     print(f"Exported {len(output['embeddings'])} embeddings, {len(output['texts'])} texts")
+
+    return "EXPORT COMPLETE"
+
+
+if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("vectorstore_path", help="The path to the Chroma vector store.")
+    parser.add_argument("persona", type=str, help="Used to identify the vector store collection.")
+    parser.add_argument("--output_name", type=str, default="embeddings.json", help="The name of the output JSON file.")
+    args = parser.parse_args()
+
+    # Print the export details
+    print(f"Exporting vectorstore located at {args.vectorstore_path} in collection {args.persona} to JSON file named {args.output_name}...")
+
+    # Export the vector store to JSON.
+    result = export_json(args.vectorstore_path, args.persona, args.output_name)
+
+    # Print the results
+    print(f"\n--- {result} ---")

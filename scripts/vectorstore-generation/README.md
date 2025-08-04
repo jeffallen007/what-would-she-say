@@ -90,6 +90,16 @@ Generating the Vectorstore:
 
 Note: this process may vary depending on the file type and data structure of the source content.
 
+## 🗑️ Deleting Vector Stores
+
+If you need to delete a vector store in order to regenerate a vector store from scratch, this can be accomplished with the following Python function:
+
+```delete_vectorstore(vectorstore_path)```
+
+Sample terminal script to delete homer vector store:
+
+```python3 delete_vectorstore.py vector-store/homer_chroma_db```
+
 ## 🤖 Current Personas
 
 The following personas are currently live and active.
@@ -104,7 +114,7 @@ The persona vector stores can be created using the following Python functions:
 
 ```generate_vectorstore_chroma(doc_path, output_name, output_directory)```
 
-```export_vectorstore_json(vectorstore_path, output_name="embeddings.json")```
+```export_vectorstore_json(vectorstore_path, persona, --output_name)```
 
 ** Note: the terminal commands in this section assume you are running them from the vectorstore-generation folder. Use this command to change directory:
 
@@ -118,7 +128,7 @@ Sample terminal script to generate 'barbie' vectorstore:
 
 ```python3 generate_vectorstore_chroma.py source-files/barbie_final_shooting_script.pdf barbie ./vector-store/barbie_chroma_db```
 
-```python3 export_vectorstore_json.py ./vector-store/barbie_chroma_db output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/barbie_chroma_db barbie --output_name embeddings.json```
 
 ### Homer Simpson
 
@@ -128,7 +138,7 @@ Sample terminal script to generate 'homer' vectorstore:
 
 ```python3 generate_vectorstore_chroma.py source-files/simpsons_dataset.csv homer ./vector-store/homer_chroma_db```
 
-```python3 export_vectorstore_json.py ./vector-store/homer_chroma_db output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/homer_chroma_db homer --output_name embeddings.json```
 
 ### Jesus
 
@@ -138,25 +148,27 @@ Sample terminal script to generate 'jesus' vectorstore:
 
 ```python3 generate_vectorstore_chroma.py source-files/bible.txt bible ./vector-store/bible_chroma_db```
 
-```python3 export_vectorstore_json.py ./vector-store/bible_chroma_db output_name="embeddings.json"```
+```python3 export_vectorstore_json.py ./vector-store/bible_chroma_db jesus --output_name embeddings.json```
 
 ## 🛠 How can I test retrieve vectorstore --> get llm response?
 
-To test retrieving a persona vectorstore and invoking RAG chain response from your IDE terminal, you can run generate_llm_response.py with the vectorstore directory path, a persona, and a question as input parameters.
+To test retrieving a persona vectorstore and invoking RAG chain response from your IDE terminal, you can run generate_llm_response.py with a question, the vectorstore directory path, a persona, and a character as input parameters.
+
+Note: persona defines the collection within vector store and character (optional) is used for filtering the vector store retrieval process.
 
 Python Function:
 
-```generate_llm_response(vs_directory, persona, question)```
+```generate_llm_response(question, vs_directory, persona, character)```
 
 Here is an example terminal command using the persona barbie.
 
-```python3 generate_llm_response.py ./vector-store/barbie_chroma_db barbie "what is the meaning of love?"```
+```python3 generate_llm_response.py "what is the meaning of love?" ./vector-store/barbie_chroma_db barbie --character "Barbie Margot"```
 
 ## 🛠 How can I test a direct query of a vector store?
 
 To test querying a vectorstore from your IDE terminal, you can run query_vectorstore.py with a query, the directory path, a persona, and a character as input parameters.
 
-Note: persona defines the collection within vector store and character is used for filtering the vector store retrieval process.
+Note: persona defines the collection within vector store and character (optional) is used for filtering the vector store retrieval process.
 
 Python Function:
 
@@ -164,19 +176,35 @@ Python Function:
 
 Here is an example terminal command using the persona homer.
 
-```python3 query_vectorstore.py "what is the meaning of love?" ./vector-store/homer_chroma_db homer, "Homer Simpson"```
+```python3 query_vectorstore.py "what is the meaning of love?" ./vector-store/homer_chroma_db homer --character "Homer Simpson"```
 
 ## 🛠 If I am not getting results from querying a vector store, how can I debug?
 
 To debug a vector store query, you can get the first N Document objects from a vector store by calling query_vectorstore_x_docs.py from your IDE terminal. Parameters to include are: the vector store directory path, a persona, a character name, and the number of items you want to return.
 
+Note: persona defines the collection within vector store and character (optional) is used for filtering the vector store retrieval process.
+
 Python Function:
 
-```query_vectorstore_x_docs(vectorstore_path, persona, character, num_docs)```
+```query_vectorstore_x_docs(vectorstore_path, persona, num_docs, character)```
 
 Here is an example terminal command using the persona homer.
 
-```python3 query_vectorstore_x_docs.py ./vector-store/homer_chroma_db homer "Homer Simpson" 10```
+```python3 query_vectorstore_x_docs.py ./vector-store/homer_chroma_db homer 10 --character "Homer Simpson"```
+
+## 🔀 How can I export the vector store to JSON format?
+
+After generating a vector store, you can convert the vector store to JSON format. The edge functions created with Lovable do not support python directly, so we need to provide JSON mappings.
+
+Python Function:
+
+```export_vectorstore_json(vectorstore_path, output_name)```
+
+Here is an example terminal command using the persona homer.
+
+```python3 export_vectorstore_json.py ./vector-store/homer_chroma_db homer --output_name embeddings.json```
+
+Note: output_name is an optional parameter. The default value is "embeddings.json".
 
 ## 🧑‍💻 How can I upload the vectorstore data to Supabase?
 

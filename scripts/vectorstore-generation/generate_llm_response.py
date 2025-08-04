@@ -5,17 +5,25 @@
 import os
 from dotenv import load_dotenv
 import argparse
-from langchain_chroma.vectorstores import Chroma
-from langchain_openai.embeddings.base import OpenAIEmbeddings
 from langchain_openai.chat_models.base import ChatOpenAI
 from langchain_core.runnables.passthrough import RunnablePassthrough
 from langchain.prompts import ChatPromptTemplate
+from query_vectorstore import query_vectorstore
 from my_prompts import my_prompt_template
 
-def generate_llm_response(vs_directory, persona, question):
+def generate_llm_response(question, vs_directory, persona, character):
+    """
+    Generates a response from the LLM based on the vector store and user question.
 
-    #### STEPS 1 - 5: should be completed upon page load or if the user changes the persona by using the "Talk with"
-    #### dropdown input. It does not need to be executed every time the user enters and submits a query.
+    Parameters:
+    vs_directory (str): The directory where the vector store is saved.
+    persona (str): The name of the persona for vector store collection and filtering.
+    question (str): The user's question to ask the LLM.
+    character (str): The character to filter the vector store by, if applicable.
+
+    Returns:
+    str: The response from the LLM.
+    """
 
     # 1. Load API key from .env
     load_dotenv()
@@ -29,55 +37,32 @@ def generate_llm_response(vs_directory, persona, question):
         api_key=openai_api_key
         )
 
-    # 3. Load vectorstore
-    embeddings = OpenAIEmbeddings(api_key=openai_api_key)
-    vectorstore_from_directory = Chroma(
-        persist_directory=vs_directory,
-        collection_name=persona,
-        embedding_function=embeddings
-    )
-
-    # 4. Create retriever from vectorstore
-    # set customer k and filter parameters based on persona
-    if persona == "jesus":
-        k_lines = 3
-        filter_criteria = ""
-    elif persona == "homer":
-        k_lines = 3
-        filter_criteria = {"character": "homer"}
-    elif persona == "barbie":
-        k_lines = 5
-        filter_criteria = {"character": "barbie"}
-
-    retriever = vectorstore_from_directory.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": k_lines, "filter": filter_criteria}
-        )
-
-    # 5. Get context from retriever using the user question.
-    docs_for_context = retriever.invoke(question)
+    # 3. Generate context utilizing retriever querying vector store.
+    # This will return a list of Document objects.
+    # See query_vectorstore.py for details.
+    print(f">> Calling function query_vectorstore() in query_vectorstore.py with...")
+    print(f"question: {question}")
+    print(f"vector store directory: {vs_directory}")
+    print(f"persona: {persona}")
+    print(f"character: {character}")
+    docs_for_context = query_vectorstore(question, vs_directory, persona, character)
     context = "\n\n".join([d.page_content for d in docs_for_context])
-    context_metadata = "\n\n".join([d.metadata for d in docs_for_context])
 
+    # debugging output
     print("=== CONTEXT ===")
     print(context)
     print("================")
 
-    print("=== METADATA ===")
-    print(context_metadata)
-    print("================")
-
-    # 5. Create RAG prompt with context and question placeholders.
+    # 4. Create RAG prompt with context and question placeholders.
     my_prompt = my_prompt_template(persona)
     prompt = ChatPromptTemplate.from_template(my_prompt)
 
-    print(f"my_prompt: \n\n{my_prompt}\n")  ### for debugging purposes
-    # print(f"prompt: \n\n{prompt}\n")  ### for debugging purposes
+    # debugging output
+    print("=== PROMPT ===")
+    print(f"\n{my_prompt}\n")
 
-    #### STEPS 6-7: should be executed every time user enters a query.
-
-    # 6. RAG Chain:
-    # pass {question} to retriever → outputing {context} and passing to prompt → format prompt → LLM
+    # 5. RAG Chain:
+    # pass {question} and {context} to prompt → format prompt → LLM
     rag_chain = (
         {
             "question": RunnablePassthrough(),
@@ -87,23 +72,23 @@ def generate_llm_response(vs_directory, persona, question):
         | llm
     )
 
-    # 7. Invoke the RAG chain with the user's question
-    # and return response to display to the user.
+    # 6. Invoke RAG chain with the user's question and return response to display to the user.
     response = rag_chain.invoke(question, context=context)
     return response.content
 
 if __name__ == "__main__":
     # Parse command line arguments
-    # Usage: python3 generate_llm_response.py <vs_directory> <persona> <question>
+    # Example Usage: python3 generate_llm_response.py <question> <vs_directory> <persona> <character>
     parser = argparse.ArgumentParser()
+    parser.add_argument("question", help="The user's question to ask the LLM.")
     parser.add_argument("vs_directory", help="The directory where the vector store is saved.")
     parser.add_argument("persona", help="The name of the persona.")
-    parser.add_argument("question", help="The user's question to ask the LLM.")
+    parser.add_argument("--character", type=str, default="None", help="The character for filtering.")
     args = parser.parse_args()
 
     # Generate the LLM response
-    response = generate_llm_response(args.vs_directory, args.persona, args.question)
+    response = generate_llm_response(args.question, args.vs_directory, args.persona, args.character)
 
     # Print the results
-    print(f"Response from LLM for persona '{args.persona}':\n{response}\n")
-    # print(f"Metadata used:\n{response.content}\n")
+    print(f"User Question: {args.question}\n")
+    print(f"Response from LLM for persona '{args.persona}, character '{args.character}': \n{response}\n")

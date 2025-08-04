@@ -23,16 +23,16 @@ def query_vectorstore(query, vectorstore_path, persona, character):
     Returns:
     list: A list of Document objects that match the query.
     """
-
-    # 1. Load API key from .env
-    load_dotenv()
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-
     # debugging output
+    print(">> Executing Function: query_vectorstore() in query_vectorstore.py")
     print(f"Creating embeddings and loading vector store from {vectorstore_path}...")
     print(f"For collection '{persona}'...")
     print(f"Using query: '{query}'...")
     print(f"Using character: '{character}'...")
+
+    # 1. Load API key from .env
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
     # 2. Load vectorstore
     embeddings = OpenAIEmbeddings(api_key=openai_api_key)
@@ -46,12 +46,23 @@ def query_vectorstore(query, vectorstore_path, persona, character):
     print("Generating retriever and conducting similarity search...")
 
     # 3. Perform a similarity search as retriever and return the results.
-    retriever = vectorstore.as_retriever(
-        search_type="similarity",
-        search_kwargs={"k": 10, "filter": {"character": character}}
-    )
+    if character == "None":
+        retriever = vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 5}
+        )
+    else:
+        # If a character is specified, filter results by that character.
+        print(f"Filtering results by character: {character}")
+        retriever = vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 5, "filter": {"character": character}}
+        )
 
+    # debugging output
     print(f"Invoking retriever with query: '{query}'...")
+
+    # 4. Invoke the retriever with the query
     results = retriever.invoke(query)
 
     return results
@@ -59,10 +70,10 @@ def query_vectorstore(query, vectorstore_path, persona, character):
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("query", help="An example user query for similarity matching.")
-    parser.add_argument("vectorstore_path", help="The directory where the vector store is persisted.")
-    parser.add_argument("persona", help="The persona being simulated.")
-    parser.add_argument("character", help="The character for filtering.")
+    parser.add_argument("query", type=str, help="An example user query for similarity matching.")
+    parser.add_argument("vectorstore_path", type=str, help="The directory where the vector store is persisted.")
+    parser.add_argument("persona", type=str, help="The persona being simulated.")
+    parser.add_argument("--character", type=str, default="None", help="The character for filtering.")
     args = parser.parse_args()
 
     # Query the vector store and print results
