@@ -9,7 +9,7 @@ from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from generate_document_objects import generate_docs_from_csv, generate_docs_from_txt, generate_docs_from_pdf
 
-def generate_vectorstore(doc_path, output_name, output_directory):
+def generate_vectorstore(doc_path, output_name, output_directory, character_filter):
     """
     Generates a Chroma vector store from the provided documents and saves it locally.
 
@@ -33,7 +33,7 @@ def generate_vectorstore(doc_path, output_name, output_directory):
 
     # 2. Generate LangChain document objects from source file(s).
     if doc_path.lower().endswith(".csv"):
-        docs = generate_docs_from_csv(doc_path)  # Custom function to handle CSV files
+        docs = generate_docs_from_csv(doc_path, character_filter)  # Custom function to handle CSV files
         print("LangChain Document objects generated from CSV file.")
     elif doc_path.lower().endswith(".pdf"):
         docs = generate_docs_from_pdf(doc_path)  # Custom function to handle PDF files
@@ -80,11 +80,13 @@ if __name__ == "__main__":
     # Parse command line arguments
     # Usage: python generate_vectorstore_chroma.py <doc_path> <output_name> <output_directory>
     parser = argparse.ArgumentParser()
-    parser.add_argument("doc_path", help="The path to the document(s) to be processed (PDF, TXT, or CSV).")
-    parser.add_argument("output_name", help="The name of the output vector store file (without extension).")
-    parser.add_argument("output_directory", help="The directory where the vector store will be saved.")
+    parser.add_argument("doc_path", type=str, help="The path to the document(s) to be processed (PDF, TXT, or CSV).")
+    parser.add_argument("output_name", type=str, help="The name of the output vector store file (without extension).")
+    parser.add_argument("output_directory", type=str, help="The directory where the vector store will be saved.")
+    parser.add_argument("--character_filter", type=str, default="None", help="The directory where the vector store will be saved.")
     args = parser.parse_args()
 
     generate_vectorstore(args.doc_path,
                         args.output_name,
-                        args.output_directory)
+                        args.output_directory,
+                        args.character_filter)

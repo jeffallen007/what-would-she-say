@@ -3,6 +3,7 @@
 import os
 import json
 import argparse
+import numpy as np
 from dotenv import load_dotenv
 from langchain_chroma.vectorstores import Chroma
 from langchain_openai.embeddings import OpenAIEmbeddings
@@ -44,7 +45,10 @@ def export_json(vectorstore_path, persona, output_name="embeddings.json"):
         results['embeddings'],
         results['metadatas']
         ):
-        output["embeddings"].append(embedding if isinstance(embedding, list) else embedding.tolist())
+        # Convert to float16 and round to 3 decimal places for size reduction
+        embedding_array = np.array(embedding, dtype=np.float32)
+        embedding_16 = embedding_array.astype(np.float16)
+        output["embeddings"].append([round(float(val), 3) for val in embedding_16])
         output["texts"].append(doc)
         output["metadata"].append(metadata or {})
 
@@ -57,7 +61,7 @@ def export_json(vectorstore_path, persona, output_name="embeddings.json"):
     print(f"Embeddings exported to {output_location} as {output_name}")
     print(f"Exported {len(output['embeddings'])} embeddings, {len(output['texts'])} texts")
 
-    return "EXPORT COMPLETE"
+    return "EXPORT PROCESS COMPLETE"
 
 
 if __name__ == "__main__":
@@ -73,6 +77,10 @@ if __name__ == "__main__":
 
     # Export the vector store to JSON.
     result = export_json(args.vectorstore_path, args.persona, args.output_name)
+
+    # Compress the JSON file to reduce size.
+    print(f"Compressing {args.vectorstore_path}/{args.output_name} to reduce size...")
+    os.system(f"gzip -k {args.vectorstore_path}/{args.output_name}")
 
     # Print the results
     print(f"\n--- {result} ---")

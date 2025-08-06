@@ -9,7 +9,7 @@ import os
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader
 
-def generate_docs_from_csv(file_path):
+def generate_docs_from_csv(file_path, character):
     """
     Generates LangChain Document objects from a CSV file.
     The CSV file is expected to have two columns: 'character' and 'dialogue'.
@@ -27,18 +27,22 @@ def generate_docs_from_csv(file_path):
     # The 'dialogue' column is used as the source text, and 'character' as metadata.
     loader = CSVLoader(
         file_path=file_path,
-        source_column="dialogue",
-        metadata_columns=["character"],
+        metadata_columns=["character"]
         )
 
     # Create LangChain Document objects, then post process.
     # Post Process: update source metadata and strip prefixes in dialogue.
     documents = loader.load()
     for doc in documents:
-        doc.metadata["source"] = file_path
+        # doc.metadata["source"] = file_path # Commented out to reduce metadata size.
         prefix = "dialogue: "
         if doc.page_content.startswith(prefix):
             doc.page_content = doc.page_content[len(prefix):]
+        # Remove the 'source'  and 'row' fields to reduce metadata size.
+        if "source" in doc.metadata:
+            del doc.metadata["source"]
+        if "row" in doc.metadata:
+            del doc.metadata["row"]
 
     # Describe the loaded documents.
     print(f"Generated {len(documents)} documents from the CSV file.")
@@ -47,7 +51,13 @@ def generate_docs_from_csv(file_path):
         print(f"Content: {doc.page_content}")
         print(f"Metadata: {doc.metadata}")
 
-    return documents
+    # Filter to only Homer Simpson's lines that are greater than 5 characters.
+    homer_docs = [doc for doc in documents if doc.metadata.get("character") == character]
+    print(f"Filtered to {len(homer_docs)} documents for character '{character}'.")
+    homer_docs_filt = [doc for doc in homer_docs if len(doc.page_content) > 5]
+    print(f"Filtered to {len(homer_docs_filt)} documents for character '{character}' with content length > 5.")
+
+    return homer_docs_filt
 
 def generate_docs_from_txt(file_path):
     """
@@ -70,7 +80,7 @@ def generate_docs_from_txt(file_path):
         return []
 
     # First line is the version label
-    source_line = lines[0]
+    # source_line = lines[0].  ### Commented out, trying to reduce size of metadata.
     content_lines = lines[1:]
 
     for line in content_lines:
@@ -83,7 +93,8 @@ def generate_docs_from_txt(file_path):
         documents.append(Document(
             page_content=line,
             metadata={
-                "source": source_line,
+                ### Commented out, trying to reduce size of metadata.
+                # "source": source_line,
                 "verse": verse_ref
             }
         ))
