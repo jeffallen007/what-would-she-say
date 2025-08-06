@@ -83,31 +83,47 @@ async function loadChromaData(supabase: any, persona: string): Promise<{ embeddi
     let jsonText: string;
     
     if (isGzipped) {
-      // Decompress using Deno's native decompression
+      // More memory-efficient streaming decompression
       const arrayBuffer = await jsonData.arrayBuffer();
       const decompressedStream = new DecompressionStream('gzip');
-      const writer = decompressedStream.writable.getWriter();
-      const reader = decompressedStream.readable.getReader();
       
-      writer.write(new Uint8Array(arrayBuffer));
-      writer.close();
-      
-      let decompressedData = new Uint8Array();
-      let done = false;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        if (value) {
-          const newData = new Uint8Array(decompressedData.length + value.length);
-          newData.set(decompressedData);
-          newData.set(value, decompressedData.length);
-          decompressedData = newData;
+      // Create a readable stream from the array buffer
+      const readableStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(arrayBuffer));
+          controller.close();
         }
-      }
+      });
       
-      jsonText = new TextDecoder().decode(decompressedData);
-      console.log(`Successfully decompressed ${persona} data`);
+      // Pipe through decompression and read chunks
+      const transformedStream = readableStream.pipeThrough(decompressedStream);
+      const reader = transformedStream.getReader();
+      
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          chunks.push(value);
+          totalLength += value.length;
+        }
+        
+        // Efficiently concatenate all chunks
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+        
+        jsonText = new TextDecoder().decode(result);
+        console.log(`Successfully decompressed ${persona} data (${totalLength} bytes)`);
+      } finally {
+        reader.releaseLock();
+      }
     } else {
       jsonText = await jsonData.text();
     }
