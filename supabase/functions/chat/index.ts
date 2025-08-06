@@ -130,13 +130,19 @@ async function loadChromaData(supabase: any, persona: string): Promise<{ embeddi
 
     const chromaData = JSON.parse(jsonText);
     
+    // Limit the number of embeddings to prevent memory issues
+    const maxEmbeddings = persona === 'jesus' ? 5000 : persona === 'homer' ? 3000 : 1000;
+    const limitedEmbeddings = chromaData.embeddings.slice(0, maxEmbeddings);
+    const limitedTexts = chromaData.texts.slice(0, maxEmbeddings);
+    const limitedMetadata = chromaData.metadata ? chromaData.metadata.slice(0, maxEmbeddings) : [];
+    
     personaCaches[persona] = {
-      embeddings: chromaData.embeddings,
-      texts: chromaData.texts,
-      metadata: chromaData.metadata || []
+      embeddings: limitedEmbeddings,
+      texts: limitedTexts,
+      metadata: limitedMetadata
     };
 
-    console.log(`Loaded ${personaCaches[persona].embeddings.length} embeddings for ${persona} (${isGzipped ? 'compressed' : 'uncompressed'})`);
+    console.log(`Loaded ${limitedEmbeddings.length} embeddings for ${persona} (limited from ${chromaData.embeddings.length} total, ${isGzipped ? 'compressed' : 'uncompressed'})`);
     return personaCaches[persona];
   } catch (error) {
     console.error(`Error loading Chroma data for ${persona}:`, error);
