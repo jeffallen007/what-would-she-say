@@ -108,7 +108,10 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
+      // Use Weaviate-based chat function for better performance
+      const functionName = selectedPersona === 'openai-gpt-4o' ? 'chat' : 'weaviate-chat';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { prompt: userMessage.content, persona: selectedPersona }
       });
 
@@ -252,7 +255,17 @@ const Index = () => {
               <label className="text-sm font-medium text-muted-foreground">
                 Talk with:
               </label>
-              <Select value={selectedPersona} onValueChange={setSelectedPersona}>
+              <Select value={selectedPersona} onValueChange={(value) => {
+                setSelectedPersona(value);
+                // Pre-warm Weaviate connection for performance
+                if (value !== 'openai-gpt-4o') {
+                  supabase.functions.invoke('weaviate-warmup', {
+                    body: { persona: value }
+                  }).catch(error => {
+                    console.log('Warmup request failed (non-critical):', error);
+                  });
+                }
+              }}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Talk with ..." />
                 </SelectTrigger>
