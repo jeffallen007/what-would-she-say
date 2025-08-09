@@ -1,0 +1,21 @@
+{
+  "class": "Jesus",
+  "description": "Verses from the Bible.",
+  "vectorizer": "text2vec-openai",
+  "moduleConfig": {
+    "text2vec-openai": {
+    "model": "text-embedding-3-large",
+    "type": "text"
+    }
+},
+  "properties": [
+    { "name": "content", "dataType": ["text"] }
+  ]
+}
+
+// { "name": "source", "dataType": ["text"] },
+// { "name": "id_num", "dataType": ["int"] },
+// { "name": "page_number", "dataType": ["int"] },
+// { "name": "type", "dataType": ["text"] },
+// { "name": "character", "dataType": ["text"] },
+// { "name": "content", "dataType": ["boolean"] }

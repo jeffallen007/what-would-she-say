@@ -9,7 +9,7 @@ import os
 from langchain_core.documents import Document
 from langchain_community.document_loaders import PyPDFLoader, CSVLoader
 
-def generate_docs_from_csv(file_path, character):
+def generate_docs_from_csv(file_path):
     """
     Generates LangChain Document objects from a CSV file.
     The CSV file is expected to have two columns: 'character' and 'dialogue'.
@@ -39,10 +39,10 @@ def generate_docs_from_csv(file_path, character):
         if doc.page_content.startswith(prefix):
             doc.page_content = doc.page_content[len(prefix):]
         # Remove the 'source'  and 'row' fields to reduce metadata size.
-        if "source" in doc.metadata:
-            del doc.metadata["source"]
-        if "row" in doc.metadata:
-            del doc.metadata["row"]
+        # if "source" in doc.metadata:
+        #     del doc.metadata["source"]
+        # if "row" in doc.metadata:
+        #     del doc.metadata["row"]
 
     # Describe the loaded documents.
     print(f"Generated {len(documents)} documents from the CSV file.")
@@ -51,13 +51,14 @@ def generate_docs_from_csv(file_path, character):
         print(f"Content: {doc.page_content}")
         print(f"Metadata: {doc.metadata}")
 
+    ### REMOVED THIS LOGIC AFTER DETERMINING WEAVIATE APPROACH WAS BETTER.
     # Filter to only Homer Simpson's lines that are greater than 5 characters.
-    homer_docs = [doc for doc in documents if doc.metadata.get("character") == character]
-    print(f"Filtered to {len(homer_docs)} documents for character '{character}'.")
-    homer_docs_filt = [doc for doc in homer_docs if len(doc.page_content) > 5]
-    print(f"Filtered to {len(homer_docs_filt)} documents for character '{character}' with content length > 5.")
+    # homer_docs = [doc for doc in documents if doc.metadata.get("character") == character]
+    # print(f"Filtered to {len(homer_docs)} documents for character '{character}'.")
+    # homer_docs_filt = [doc for doc in homer_docs if len(doc.page_content) > 5]
+    # print(f"Filtered to {len(homer_docs_filt)} documents for character '{character}' with content length > 5.")
 
-    return homer_docs_filt
+    return documents
 
 def generate_docs_from_txt(file_path):
     """
@@ -79,8 +80,8 @@ def generate_docs_from_txt(file_path):
     if not lines:
         return []
 
-    # First line is the version label
-    # source_line = lines[0].  ### Commented out, trying to reduce size of metadata.
+    # First line is the source label, subsequent lines are content.
+    source_line = lines[0] 
     content_lines = lines[1:]
 
     for line in content_lines:
@@ -94,7 +95,7 @@ def generate_docs_from_txt(file_path):
             page_content=line,
             metadata={
                 ### Commented out, trying to reduce size of metadata.
-                # "source": source_line,
+                "source": source_line,
                 "verse": verse_ref
             }
         ))
@@ -124,7 +125,7 @@ def generate_docs_from_pdf(file_path):
     loader = PyPDFLoader(file_path)
     pages = loader.load()
     file_name = os.path.basename(file_path)
-    print(f"Loaded {len(pages)} pages from the PDF file: {file_name}")
+    print(f"\nLoaded {len(pages)} pages from the PDF file: {file_name}")
 
     # Initialize variables for parsing.
     # This will hold the final documents.
@@ -157,7 +158,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=content,
                     metadata={
                         "source": file_name,
-                        "id": doc_id,
+                        "id_num": doc_id,
                         "page_number": page_number,
                         "type": "dialogue",
                         "character": current_character,
@@ -178,7 +179,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=content,
                     metadata={
                         "source": file_name,
-                        "id": doc_id,
+                        "id_num": doc_id,
                         "page_number": page_number,
                         "type": "action",
                         "character": "none",
@@ -206,7 +207,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=line.lower(),
                     metadata={
                         "source": file_name,
-                        "id": doc_id,
+                        "id_num": doc_id,
                         "page_number": page_number,
                         "type": "scene_heading",
                         "character": "none",
@@ -236,10 +237,10 @@ def generate_docs_from_pdf(file_path):
         flush_dialogue_buffer(page_number)
         flush_action_buffer(page_number)
 
-    print(f"Parsed {len(documents)} LangChain documents from the PDF file: {file_name}")
-    print("First 10 loaded documents page_content and metadata:")
-    for doc in documents[:10]:
+    print(f"Parsed {len(documents)} LangChain documents from the PDF file: {file_name}\n")
+    print("Documents 128-130, page_content and metadata:\n")
+    for doc in documents[128:130]:
         print(f"Content: {doc.page_content}")
-        print(f"Metadata: {doc.metadata}")
+        print(f"Metadata: {doc.metadata}\n")
 
     return documents
