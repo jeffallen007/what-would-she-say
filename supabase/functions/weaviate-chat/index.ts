@@ -95,12 +95,30 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     const fetchDocs = async (extraWhere: string, attempt: string = '') => {
       const gql = buildQuery(extraWhere);
       
-      console.log(`🔍 ${attempt} GraphQL Query to ${client.url}/v1/graphql:`, {
-        collection: collectionName,
-        queryText: query,
-        whereClause: extraWhere || '(no filter)',
-        fullQuery: gql.query.substring(0, 200) + '...'
-      });
+      // Log query details in a clean format
+      console.log(`🔍 ${attempt} - Query Details:`);
+      console.log(`  Collection: ${collectionName}`);
+      console.log(`  Search Text: "${query}"`);
+      console.log(`  Filter: ${extraWhere ? extraWhere.replace(/,\s*where:\s*\{\s*path:\s*\["character"\],\s*operator:\s*Equal,\s*valueText:\s*"([^"]+)"\s*\}/, 'Character = $1') : 'None'}`);
+      
+      // Format and log the actual GraphQL query
+      const formattedQuery = gql.query
+        .replace(/\s+/g, ' ')
+        .replace(/{\s*/g, '{\n  ')
+        .replace(/}\s*/g, '\n}')
+        .replace(/\(\s*/g, '(\n    ')
+        .replace(/\)\s*/g, '\n  )')
+        .replace(/,\s*/g, ',\n    ')
+        .split('\n')
+        .map((line, index) => {
+          const indent = '  '.repeat(Math.max(0, (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length));
+          return line.trim() ? indent + line.trim() : '';
+        })
+        .filter(line => line.trim())
+        .join('\n');
+      
+      console.log(`📝 GraphQL Query:`);
+      console.log(formattedQuery);
       
       const startQueryTime = Date.now();
       const res = await fetch(`${client.url}/v1/graphql`, {
@@ -111,26 +129,27 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       const queryTime = Date.now() - startQueryTime;
       
       if (!res.ok) {
-        console.error(`❌ Weaviate HTTP error:`, {
-          status: res.status,
-          statusText: res.statusText,
-          url: `${client.url}/v1/graphql`,
-          timeMs: queryTime
-        });
+        console.error(`❌ Weaviate HTTP Error (${queryTime}ms):`);
+        console.error(`  Status: ${res.status} ${res.statusText}`);
+        console.error(`  URL: ${client.url}/v1/graphql`);
         throw new Error(`Weaviate query failed: ${res.status} ${res.statusText}`);
       }
       
       const json = await res.json();
-      console.log(`📊 Weaviate raw response (${queryTime}ms):`, {
-        hasData: !!json.data,
-        hasErrors: !!json.errors,
-        dataKeys: json.data ? Object.keys(json.data) : [],
-        errorCount: json.errors?.length || 0,
-        rawResponse: JSON.stringify(json).substring(0, 500) + '...'
-      });
       
-      if (json.errors) {
-        console.error('❌ Weaviate GraphQL errors:', json.errors);
+      // Log response in a clean format
+      console.log(`📊 Weaviate Response (${queryTime}ms):`);
+      console.log(`  Status: ${json.errors ? 'Error' : 'Success'}`);
+      console.log(`  Data Available: ${!!json.data}`);
+      
+      if (json.errors && json.errors.length > 0) {
+        console.error(`❌ GraphQL Errors (${json.errors.length}):`);
+        json.errors.forEach((error: any, index: number) => {
+          console.error(`  Error ${index + 1}:`);
+          console.error(`    Message: ${error.message}`);
+          if (error.path) console.error(`    Path: ${error.path.join(' > ')}`);
+          if (error.locations) console.error(`    Location: line ${error.locations[0]?.line}, column ${error.locations[0]?.column}`);
+        });
         return [] as any[];
       }
       
