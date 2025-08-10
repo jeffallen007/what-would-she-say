@@ -54,7 +54,16 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     });
 
     console.log(`Generating embedding for query: "${query}"`);
+    const startEmbedTime = Date.now();
     const queryEmbedding = await embeddings.embedQuery(query);
+    const embeddingTime = Date.now() - startEmbedTime;
+    console.log(`✅ Embedding generated successfully:`, {
+      dimensions: queryEmbedding.length,
+      model: 'text-embedding-ada-002',
+      timeMs: embeddingTime,
+      firstFewValues: queryEmbedding.slice(0, 3).map(v => v.toFixed(6)),
+      lastFewValues: queryEmbedding.slice(-3).map(v => v.toFixed(6))
+    });
 
     // Determine collection name based on persona
     let collectionName = '';
@@ -99,57 +108,117 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     });
 
     // Helper to execute a query and return documents
-    const fetchDocs = async (extraWhere: string) => {
+    const fetchDocs = async (extraWhere: string, attempt: string = '') => {
       const gql = buildQuery(extraWhere);
+      const queryVector = queryEmbedding.slice(0, 5).map(v => v.toFixed(4));
+      
+      console.log(`🔍 ${attempt} GraphQL Query to ${client.url}/v1/graphql:`, {
+        collection: collectionName,
+        vectorPreview: `[${queryVector.join(', ')}...] (${queryEmbedding.length} dims)`,
+        whereClause: extraWhere || '(no filter)',
+        fullQuery: gql.query.substring(0, 200) + '...'
+      });
+      
+      const startQueryTime = Date.now();
       const res = await fetch(`${client.url}/v1/graphql`, {
         method: 'POST',
         headers: client.headers,
         body: JSON.stringify(gql),
       });
+      const queryTime = Date.now() - startQueryTime;
+      
       if (!res.ok) {
+        console.error(`❌ Weaviate HTTP error:`, {
+          status: res.status,
+          statusText: res.statusText,
+          url: `${client.url}/v1/graphql`,
+          timeMs: queryTime
+        });
         throw new Error(`Weaviate query failed: ${res.status} ${res.statusText}`);
       }
+      
       const json = await res.json();
+      console.log(`📊 Weaviate raw response (${queryTime}ms):`, {
+        hasData: !!json.data,
+        hasErrors: !!json.errors,
+        dataKeys: json.data ? Object.keys(json.data) : [],
+        errorCount: json.errors?.length || 0,
+        rawResponse: JSON.stringify(json).substring(0, 500) + '...'
+      });
+      
       if (json.errors) {
-        console.error('Weaviate GraphQL errors:', json.errors);
+        console.error('❌ Weaviate GraphQL errors:', json.errors);
         return [] as any[];
       }
-      return json.data?.Get?.[collectionName] ?? [];
+      
+      const documents = json.data?.Get?.[collectionName] ?? [];
+      console.log(`📄 Documents retrieved:`, {
+        count: documents.length,
+        collection: collectionName,
+        attempt: attempt,
+        preview: documents.slice(0, 2).map((doc: any) => ({
+          character: doc.character,
+          distance: doc._additional?.distance,
+          contentPreview: doc.content?.substring(0, 100) + '...'
+        }))
+      });
+      
+      return documents;
     };
 
-    console.log(`Querying Weaviate collection: ${collectionName}`);
+    console.log(`🎯 Starting Weaviate collection query: ${collectionName}`);
 
     // First attempt: with character filter (when provided)
-    let documents: any[] = await fetchDocs(whereClause);
+    let documents: any[] = await fetchDocs(whereClause, '🔍 ATTEMPT 1 (with character filter)');
 
     // Fallback 1: if nothing found and we used a character filter, retry without filter
     if ((!documents || documents.length === 0) && characterFilter) {
-      console.log(`No docs found with character filter for ${persona}. Retrying without character filter...`);
-      documents = await fetchDocs('');
+      console.log(`⚠️ No docs found with character filter for ${persona}. Retrying without character filter...`);
+      documents = await fetchDocs('', '🔍 ATTEMPT 2 (no character filter)');
     }
 
-    // Apply similarity threshold
+    // Apply similarity threshold and log filtering process
     const threshold = 0.8; // Lower distance = higher similarity in Weaviate
+    console.log(`🎯 Applying similarity threshold: ${threshold} (distances below this are considered relevant)`);
+    
+    const allDocsWithScores = (documents || []).map((doc: any) => ({
+      character: doc.character,
+      distance: doc._additional?.distance,
+      isRelevant: doc._additional?.distance < threshold,
+      contentPreview: doc.content?.substring(0, 150) + '...'
+    }));
+    
+    console.log(`📊 All documents with similarity scores:`, allDocsWithScores);
+    
     let relevantDocs = (documents || []).filter((doc: any) => doc._additional.distance < threshold);
 
     // Fallback 2: if nothing above threshold and we used a character filter, retry no-filter and re-apply threshold
     if (relevantDocs.length === 0 && characterFilter) {
-      console.log(`No docs above threshold with character filter for ${persona}. Retrying without character filter...`);
-      const unfilteredDocs = await fetchDocs('');
+      console.log(`⚠️ No docs above threshold with character filter for ${persona}. Retrying without character filter...`);
+      const unfilteredDocs = await fetchDocs('', '🔍 ATTEMPT 3 (no filter, retry threshold)');
+      const unfilteredWithScores = (unfilteredDocs || []).map((doc: any) => ({
+        character: doc.character,
+        distance: doc._additional?.distance,
+        isRelevant: doc._additional?.distance < threshold,
+        contentPreview: doc.content?.substring(0, 150) + '...'
+      }));
+      console.log(`📊 Unfiltered documents with similarity scores:`, unfilteredWithScores);
       relevantDocs = (unfilteredDocs || []).filter((doc: any) => doc._additional.distance < threshold);
     }
 
     if (!relevantDocs || relevantDocs.length === 0) {
-      console.log(`No relevant documents found for ${persona}`);
+      console.log(`❌ No relevant documents found for ${persona} above threshold ${threshold}`);
       return null;
     }
 
     const context = relevantDocs.map((doc: any) => doc.content).join('\n\n');
 
-    console.log(
-      `Retrieved ${relevantDocs.length} relevant docs for ${persona} with distances:`,
-      relevantDocs.map((d: any) => d._additional.distance.toFixed(3))
-    );
+    console.log(`✅ Successfully retrieved context for ${persona}:`, {
+      relevantDocsCount: relevantDocs.length,
+      distances: relevantDocs.map((d: any) => d._additional.distance.toFixed(3)),
+      contextLength: context.length,
+      contextPreview: context.substring(0, 200) + '...'
+    });
 
     return context;
   } catch (error) {
