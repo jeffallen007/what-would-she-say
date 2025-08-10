@@ -79,67 +79,78 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       whereClause = `, where: { path: ["character"], operator: Equal, valueText: "${characterFilter}" }`;
     }
 
-    const graphqlQuery = {
+    // Helper to build a GraphQL query with optional where clause
+    const buildQuery = (extraWhere: string) => ({
       query: `
         {
           Get {
             ${collectionName}(
               nearVector: { vector: [${queryEmbedding.join(', ')}] }
               limit: 3
-              ${whereClause}
+              ${extraWhere}
             ) {
               content
               character
-              _additional {
-                distance
-              }
+              _additional { distance }
             }
           }
         }
       `
+    });
+
+    // Helper to execute a query and return documents
+    const fetchDocs = async (extraWhere: string) => {
+      const gql = buildQuery(extraWhere);
+      const res = await fetch(`${client.url}/v1/graphql`, {
+        method: 'POST',
+        headers: client.headers,
+        body: JSON.stringify(gql),
+      });
+      if (!res.ok) {
+        throw new Error(`Weaviate query failed: ${res.status} ${res.statusText}`);
+      }
+      const json = await res.json();
+      if (json.errors) {
+        console.error('Weaviate GraphQL errors:', json.errors);
+        return [] as any[];
+      }
+      return json.data?.Get?.[collectionName] ?? [];
     };
 
     console.log(`Querying Weaviate collection: ${collectionName}`);
-    
-    // Make the GraphQL request to Weaviate
-    const response = await fetch(`${client.url}/v1/graphql`, {
-      method: 'POST',
-      headers: client.headers,
-      body: JSON.stringify(graphqlQuery),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Weaviate query failed: ${response.status} ${response.statusText}`);
+    // First attempt: with character filter (when provided)
+    let documents: any[] = await fetchDocs(whereClause);
+
+    // Fallback 1: if nothing found and we used a character filter, retry without filter
+    if ((!documents || documents.length === 0) && characterFilter) {
+      console.log(`No docs found with character filter for ${persona}. Retrying without character filter...`);
+      documents = await fetchDocs('');
     }
 
-    const result = await response.json();
-    
-    if (result.errors) {
-      console.error('Weaviate GraphQL errors:', result.errors);
-      return null;
+    // Apply similarity threshold
+    const threshold = 0.8; // Lower distance = higher similarity in Weaviate
+    let relevantDocs = (documents || []).filter((doc: any) => doc._additional.distance < threshold);
+
+    // Fallback 2: if nothing above threshold and we used a character filter, retry no-filter and re-apply threshold
+    if (relevantDocs.length === 0 && characterFilter) {
+      console.log(`No docs above threshold with character filter for ${persona}. Retrying without character filter...`);
+      const unfilteredDocs = await fetchDocs('');
+      relevantDocs = (unfilteredDocs || []).filter((doc: any) => doc._additional.distance < threshold);
     }
 
-    const documents = result.data?.Get?.[collectionName];
-    
-    if (!documents || documents.length === 0) {
+    if (!relevantDocs || relevantDocs.length === 0) {
       console.log(`No relevant documents found for ${persona}`);
       return null;
     }
 
-    // Filter by similarity threshold and combine content
-    const threshold = 0.8; // Lower distance = higher similarity in Weaviate
-    const relevantDocs = documents.filter((doc: any) => doc._additional.distance < threshold);
-    
-    if (relevantDocs.length === 0) {
-      console.log(`No documents above similarity threshold for ${persona}`);
-      return null;
-    }
-
     const context = relevantDocs.map((doc: any) => doc.content).join('\n\n');
-    
-    console.log(`Retrieved ${relevantDocs.length} relevant docs for ${persona} with distances:`, 
-      relevantDocs.map((d: any) => d._additional.distance.toFixed(3)));
-    
+
+    console.log(
+      `Retrieved ${relevantDocs.length} relevant docs for ${persona} with distances:`,
+      relevantDocs.map((d: any) => d._additional.distance.toFixed(3))
+    );
+
     return context;
   } catch (error) {
     console.error(`Error querying Weaviate for ${persona}:`, error);

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Send, User, Bot } from "lucide-react";
+import { Helmet } from "react-helmet-async";
 
 interface Message {
   id: string;
@@ -93,6 +94,17 @@ const Index = () => {
     }
   }, [messages, isLoading]);
 
+  // Warm up Weaviate connection on initial load and persona change
+  useEffect(() => {
+    if (selectedPersona !== 'openai-gpt-4o') {
+      supabase.functions.invoke('weaviate-warmup', {
+        body: { persona: selectedPersona }
+      }).catch(error => {
+        console.log('Warmup request failed (non-critical):', error);
+      });
+    }
+  }, [selectedPersona]);
+
   const handleSubmit = async () => {
     if (!prompt.trim() || isLoading) return;
 
@@ -152,14 +164,19 @@ const Index = () => {
 
   return (
     <div className="h-screen bg-background flex flex-col">
+      <Helmet>
+        <title>{`${getHeaderTitle()} – AI Chatbot`}</title>
+        <meta name="description" content={`Chat with ${getPersonaLabel(selectedPersona)}. Persona-aware AI answers with Weaviate context.`} />
+        <link rel="canonical" href={window.location.href} />
+      </Helmet>
       {/* Fixed Header */}
       <header className="text-center py-8 px-4 flex-shrink-0">
         <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
           {getHeaderTitle()}
         </h1>
       </header>
-      
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 min-h-0">
+
+      <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full px-4 min-h-0">
         {/* Scrollable Chat Messages */}
         <ScrollArea 
           ref={scrollAreaRef}
@@ -308,7 +325,7 @@ const Index = () => {
             </p>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 };
