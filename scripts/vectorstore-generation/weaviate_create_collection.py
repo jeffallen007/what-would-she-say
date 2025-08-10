@@ -21,6 +21,4 @@ def create_collection(client, collection_json):
         else:
             raise ValueError(f"❌ Collection '{collection_name}' was NOT created.")
 
-        print(f"DEBUG: collection_name in create_collection(): {collection_name} with type: {type(collection_name)}")
-
         return collection_name

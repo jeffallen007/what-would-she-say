@@ -12,10 +12,3 @@
     { "name": "content", "dataType": ["text"] }
   ]
 }
-
-// { "name": "source", "dataType": ["text"] },
-// { "name": "id_num", "dataType": ["int"] },
-// { "name": "page_number", "dataType": ["int"] },
-// { "name": "type", "dataType": ["text"] },
-// { "name": "character", "dataType": ["text"] },
-// { "name": "content", "dataType": ["boolean"] }

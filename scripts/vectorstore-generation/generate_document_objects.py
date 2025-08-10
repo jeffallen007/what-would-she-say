@@ -33,8 +33,10 @@ def generate_docs_from_csv(file_path):
     # Create LangChain Document objects, then post process.
     # Post Process: update source metadata and strip prefixes in dialogue.
     documents = loader.load()
+    count_doc = 1
     for doc in documents:
-        # doc.metadata["source"] = file_path # Commented out to reduce metadata size.
+        doc.metadata["source"] = file_path
+        doc.metadata["doc_id"] = count_doc
         prefix = "dialogue: "
         if doc.page_content.startswith(prefix):
             doc.page_content = doc.page_content[len(prefix):]
@@ -43,6 +45,7 @@ def generate_docs_from_csv(file_path):
         #     del doc.metadata["source"]
         # if "row" in doc.metadata:
         #     del doc.metadata["row"]
+        count_doc += 1
 
     # Describe the loaded documents.
     print(f"Generated {len(documents)} documents from the CSV file.")
@@ -81,8 +84,9 @@ def generate_docs_from_txt(file_path):
         return []
 
     # First line is the source label, subsequent lines are content.
-    source_line = lines[0] 
+    source_line = lines[0]
     content_lines = lines[1:]
+    count_doc = 1
 
     for line in content_lines:
         # Extract verse reference (before first tab)
@@ -94,11 +98,13 @@ def generate_docs_from_txt(file_path):
         documents.append(Document(
             page_content=line,
             metadata={
-                ### Commented out, trying to reduce size of metadata.
                 "source": source_line,
-                "verse": verse_ref
+                "verse": verse_ref,
+                "doc_id": count_doc
             }
         ))
+
+        count_doc += 1
 
     # Describe the loaded documents.
     print(f"Generated {len(documents)} documents from the Text file.")
@@ -116,9 +122,9 @@ def generate_docs_from_pdf(file_path):
 
     Parameters:
     file_path (str): The path to the PDF file.
+
     Returns:
-    documents (list): A list of LangChain Document objects created
-    from the PDF file.
+    documents (list): A list of LangChain Document objects created from the PDF file.
     """
 
     # Load the PDF file into LangChain Document objects as single pages.
@@ -158,7 +164,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=content,
                     metadata={
                         "source": file_name,
-                        "id_num": doc_id,
+                        "doc_id": doc_id,
                         "page_number": page_number,
                         "type": "dialogue",
                         "character": current_character,
@@ -179,7 +185,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=content,
                     metadata={
                         "source": file_name,
-                        "id_num": doc_id,
+                        "doc_id": doc_id,
                         "page_number": page_number,
                         "type": "action",
                         "character": "none",
@@ -207,7 +213,7 @@ def generate_docs_from_pdf(file_path):
                     page_content=line.lower(),
                     metadata={
                         "source": file_name,
-                        "id_num": doc_id,
+                        "doc_id": doc_id,
                         "page_number": page_number,
                         "type": "scene_heading",
                         "character": "none",

@@ -33,11 +33,12 @@ The GUI and edge functions were vibe coded using Lovable. The Vector Store gener
 
 ## What platforms were used to build this application?
 
-This application was built by vibe coding the front end UI on Lovable, connecting the backend using Supabase, and generating vectorstores, RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
+This application was built by vibe coding the front end UI on Lovable, batch uploading Document objects to Weaviate Collection for vector store generation, connecting the backend using Supabase, and creating RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
 
 - VS Code
 - Lovable.dev
 - Supabase.com
+- Weaviate.com
 
 ## What technologies are used for this project?
 
