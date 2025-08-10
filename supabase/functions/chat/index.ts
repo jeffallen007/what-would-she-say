@@ -32,43 +32,117 @@ const personaCaches: { [key: string]: { embeddings: number[][], texts: string[],
 // Generic function to load and parse Chroma vectorstore data for any persona
 async function loadChromaData(supabase: any, persona: string): Promise<{ embeddings: number[][], texts: string[], metadata: any[] } | null> {
   if (personaCaches[persona]) {
+    console.log(`Using cached data for ${persona}`);
     return personaCaches[persona];
   }
 
   try {
     console.log(`Loading Chroma vectorstore for ${persona} from storage...`);
     
-    // Determine the directory based on persona
+    // Determine the directory based on persona with updated paths
     let directoryPath = '';
+    let gzippedPath = '';
+    
     if (persona === 'jesus') {
-      directoryPath = 'chroma_langchain_db/embeddings.json';
-    } else if (persona === 'homer-simpson') {
+      directoryPath = 'bible_chroma_db/embeddings.json';
+      gzippedPath = 'bible_chroma_db/embeddings.json.gz';
+    } else if (persona === 'homer') {
       directoryPath = 'homer_chroma_db/embeddings.json';
+      gzippedPath = 'homer_chroma_db/embeddings.json.gz';
+    } else if (persona === 'barbie') {
+      directoryPath = 'barbie_chroma_db/embeddings.json';
+      gzippedPath = 'barbie_chroma_db/embeddings.json.gz';
     } else {
       console.log(`No Chroma vectorstore configured for persona: ${persona}`);
       return null;
     }
 
-    // Load the JSON embeddings data
-    const { data: jsonData, error: jsonError } = await supabase.storage
-      .from('vectorstore')
-      .download(directoryPath);
+    // Try to load gzipped version first for better performance
+    let jsonData, jsonError;
+    let isGzipped = false;
+    
+    console.log(`Attempting to load gzipped version: ${gzippedPath}`);
+    const gzResult = await supabase.storage.from('vectorstore').download(gzippedPath);
+    
+    if (!gzResult.error) {
+      jsonData = gzResult.data;
+      isGzipped = true;
+      console.log(`Using gzipped file for ${persona}`);
+    } else {
+      console.log(`Gzipped file not found, falling back to uncompressed: ${directoryPath}`);
+      const uncompressedResult = await supabase.storage.from('vectorstore').download(directoryPath);
+      jsonData = uncompressedResult.data;
+      jsonError = uncompressedResult.error;
+    }
 
-    if (jsonError) {
-      console.log(`No Chroma vectorstore found for ${persona} at ${directoryPath}`);
+    if (jsonError || !jsonData) {
+      console.log(`No Chroma vectorstore found for ${persona}`);
       return null;
     }
 
-    const jsonText = await jsonData.text();
+    let jsonText: string;
+    
+    if (isGzipped) {
+      // More memory-efficient streaming decompression
+      const arrayBuffer = await jsonData.arrayBuffer();
+      const decompressedStream = new DecompressionStream('gzip');
+      
+      // Create a readable stream from the array buffer
+      const readableStream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(arrayBuffer));
+          controller.close();
+        }
+      });
+      
+      // Pipe through decompression and read chunks
+      const transformedStream = readableStream.pipeThrough(decompressedStream);
+      const reader = transformedStream.getReader();
+      
+      const chunks: Uint8Array[] = [];
+      let totalLength = 0;
+      
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          chunks.push(value);
+          totalLength += value.length;
+        }
+        
+        // Efficiently concatenate all chunks
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+        
+        jsonText = new TextDecoder().decode(result);
+        console.log(`Successfully decompressed ${persona} data (${totalLength} bytes)`);
+      } finally {
+        reader.releaseLock();
+      }
+    } else {
+      jsonText = await jsonData.text();
+    }
+
     const chromaData = JSON.parse(jsonText);
     
+    // Limit the number of embeddings to prevent memory issues
+    const maxEmbeddings = persona === 'jesus' ? 5000 : persona === 'homer' ? 3000 : 1000;
+    const limitedEmbeddings = chromaData.embeddings.slice(0, maxEmbeddings);
+    const limitedTexts = chromaData.texts.slice(0, maxEmbeddings);
+    const limitedMetadata = chromaData.metadata ? chromaData.metadata.slice(0, maxEmbeddings) : [];
+    
     personaCaches[persona] = {
-      embeddings: chromaData.embeddings,
-      texts: chromaData.texts,
-      metadata: chromaData.metadata || []
+      embeddings: limitedEmbeddings,
+      texts: limitedTexts,
+      metadata: limitedMetadata
     };
 
-    console.log(`Loaded ${personaCaches[persona].embeddings.length} embeddings for ${persona}`);
+    console.log(`Loaded ${limitedEmbeddings.length} embeddings for ${persona} (limited from ${chromaData.embeddings.length} total, ${isGzipped ? 'compressed' : 'uncompressed'})`);
     return personaCaches[persona];
   } catch (error) {
     console.error(`Error loading Chroma data for ${persona}:`, error);
@@ -92,21 +166,75 @@ async function getChromaContext(supabase: any, query: string, persona: string): 
 
     const queryEmbedding = await embeddings.embedQuery(query);
 
-    // Find top 3 most similar documents
-    const similarities = chromaData.embeddings.map((embedding, index) => ({
+    // Apply character-based filtering if metadata exists
+    let filteredData = { 
+      embeddings: chromaData.embeddings, 
+      texts: chromaData.texts, 
+      metadata: chromaData.metadata 
+    };
+
+    if (chromaData.metadata && chromaData.metadata.length > 0) {
+      if (persona === 'barbie') {
+        // Filter for Barbie Margot character
+        const filteredIndices: number[] = [];
+        chromaData.metadata.forEach((meta, index) => {
+          if (meta && meta.character === 'Barbie Margot') {
+            filteredIndices.push(index);
+          }
+        });
+        
+        if (filteredIndices.length > 0) {
+          filteredData = {
+            embeddings: filteredIndices.map(i => chromaData.embeddings[i]),
+            texts: filteredIndices.map(i => chromaData.texts[i]),
+            metadata: filteredIndices.map(i => chromaData.metadata[i])
+          };
+          console.log(`Filtered to ${filteredData.embeddings.length} Barbie Margot entries`);
+        }
+      } else if (persona === 'homer') {
+        // Filter for Homer Simpson character
+        const filteredIndices: number[] = [];
+        chromaData.metadata.forEach((meta, index) => {
+          if (meta && meta.character === 'Homer Simpson') {
+            filteredIndices.push(index);
+          }
+        });
+        
+        if (filteredIndices.length > 0) {
+          filteredData = {
+            embeddings: filteredIndices.map(i => chromaData.embeddings[i]),
+            texts: filteredIndices.map(i => chromaData.texts[i]),
+            metadata: filteredIndices.map(i => chromaData.metadata[i])
+          };
+          console.log(`Filtered to ${filteredData.embeddings.length} Homer Simpson entries`);
+        }
+      }
+      // Jesus doesn't need character filtering (Bible text)
+    }
+
+    // Find top 3 most similar documents with similarity threshold
+    const similarities = filteredData.embeddings.map((embedding, index) => ({
       index,
       similarity: cosineSimilarity(queryEmbedding, embedding),
-      text: chromaData.texts[index]
+      text: filteredData.texts[index],
+      metadata: filteredData.metadata ? filteredData.metadata[index] : null
     }));
 
-    // Sort by similarity and take top 3
+    // Sort by similarity and filter by threshold
     similarities.sort((a, b) => b.similarity - a.similarity);
-    const topDocs = similarities.slice(0, 3);
+    const threshold = 0.1; // Minimum similarity threshold
+    const relevantDocs = similarities.filter(doc => doc.similarity > threshold);
+    const topDocs = relevantDocs.slice(0, 3);
+
+    if (topDocs.length === 0) {
+      console.log(`No relevant context found for ${persona} (threshold: ${threshold})`);
+      return null;
+    }
 
     // Combine the text content
     const context = topDocs.map(doc => doc.text).join('\n\n');
     
-    console.log(`Retrieved context for ${persona} with similarities:`, topDocs.map(d => d.similarity));
+    console.log(`Retrieved ${topDocs.length} relevant docs for ${persona} with similarities:`, topDocs.map(d => d.similarity.toFixed(3)));
     return context;
   } catch (error) {
     console.error(`Error getting Chroma context for ${persona}:`, error);
@@ -175,33 +303,55 @@ Now respond to the following question with biblical wisdom and compassion.`;
       }
     }
 
-    // Handle Homer Simpson persona with Chroma vectorstore RAG
-    if (persona === 'homer-simpson') {
+    // Handle Homer persona with Chroma vectorstore RAG (updated mapping)
+    if (persona === 'homer') {
       try {
         // Get relevant context using Chroma vectorstore
         const context = await getChromaContext(supabase, prompt, persona);
         
         if (context) {
-          systemMessage = `You are Homer Simpson from The Simpsons. Respond in 1-5 sentences with Homer's humor and simplicity.
-Here are things that you have said in the past from episodes of the TV show:
+          systemMessage = `You are Homer Simpson. Speak with humor and simplicity.
+Respond in 1-5 sentences with Homer's humor and simplicity.
 
+Here are things that you have said in the past from episodes of the TV show:
 ${context}
 
-Use these statements as context for your persona when responding to the user's text inputs, so that you can portray the tone and style of Homer Simpson. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.`;
-          console.log('Using Chroma RAG context for Homer Simpson persona');
+Use these statements as context for your persona when responding to the user's text inputs, so that you can portray the tone and style of Homer Simpson. Respond with Homer's characteristic humor, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases. You can occasionally mention your love for beer or donuts, and you can exclaim 'D'oh!' when making a mistake.`;
+          console.log('Using Chroma RAG context for Homer persona');
+          console.log('System message:', systemMessage);
         } else {
-          console.log('Chroma context not available, using basic Homer Simpson persona');
-          systemMessage = "You are Homer Simpson from The Simpsons. Respond in 1-5 sentences with Homer's humor and simplicity. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+          console.log('Chroma context not available, using basic Homer persona');
+          systemMessage = "You are Homer Simpson. Speak with humor and simplicity. Respond in 1-5 sentences with Homer's humor and simplicity. Respond with Homer's characteristic humor, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases. You can occasionally mention your love for beer or donuts, and you can exclaim 'D'oh!' when making a mistake.";
         }
       } catch (vectorError) {
-        console.error('Error loading Chroma vectorstore for Homer Simpson:', vectorError);
-        systemMessage = "You are Homer Simpson from The Simpsons. Respond with Homer's characteristic humor, his love for beer and donuts, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases like 'D'oh!' when appropriate.";
+        console.error('Error loading Chroma vectorstore for Homer:', vectorError);
+        systemMessage = "You are Homer Simpson. Speak with humor and simplicity. Respond with Homer's characteristic humor, his simple but endearing worldview, and his occasional moments of surprising wisdom. Use his typical speech patterns and catchphrases. You can occasionally mention your love for beer or donuts, and you can exclaim 'D'oh!' when making a mistake.";
       }
     }
 
-    // Handle Barbie persona (no vectorstore)
+    // Handle Barbie persona with Chroma vectorstore RAG (now using vectorstore)
     if (persona === 'barbie') {
-      systemMessage = "You are Barbie. Speak like Barbie from the movie Barbie. Respond in 3-5 sentences with Barbie's positivity and enthusiasm. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or will.";
+      try {
+        // Get relevant context using Chroma vectorstore
+        const context = await getChromaContext(supabase, prompt, persona);
+        
+        if (context) {
+          systemMessage = `You are Barbie. Speak like 'Barbie Margot' from the movie Barbie. Speak with confidence, positivity, and empowerment.
+Your words should reflect the values of friendship, adventure, and self-expression. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or ill will.
+Respond in 3-5 sentences with Barbie's positivity and enthusiasm.
+
+Here are some quotes from the Movie to inspire your response:
+${context}`;
+          console.log('Using Chroma RAG context for Barbie persona');
+          console.log('System message:', systemMessage);
+        } else {
+          console.log('Chroma context not available, using basic Barbie persona');
+          systemMessage = "You are Barbie. Speak like 'Barbie Margot' from the movie Barbie. Speak with confidence, positivity, and empowerment. Your words should reflect the values of friendship, adventure, and self-expression. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or ill will. Respond in 3-5 sentences with Barbie's positivity and enthusiasm.";
+        }
+      } catch (vectorError) {
+        console.error('Error loading Chroma vectorstore for Barbie:', vectorError);
+        systemMessage = "You are Barbie. Speak like 'Barbie Margot' from the movie Barbie. Speak with confidence, positivity, and empowerment. Your words should reflect the values of friendship, adventure, and self-expression. Your words of wisdom should be in typical Barbie fashion, a passionate, bubbly, kind-hearted lady who never has any bad intentions or ill will. Respond in 3-5 sentences with Barbie's positivity and enthusiasm.";
+      }
     }
 
     // Create prompt template

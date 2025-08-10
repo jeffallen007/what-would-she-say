@@ -24,7 +24,7 @@ const personaConfig = {
     dropdownLabel: 'Jesus', 
     headerName: 'Jesus' 
   },
-  'homer-simpson': { 
+  'homer': { 
     dropdownLabel: 'Homer Simpson', 
     headerName: 'Homer' 
   },
@@ -108,7 +108,10 @@ const Index = () => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('chat', {
+      // Use Weaviate-based chat function for better performance
+      const functionName = selectedPersona === 'openai-gpt-4o' ? 'chat' : 'weaviate-chat';
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { prompt: userMessage.content, persona: selectedPersona }
       });
 
@@ -252,14 +255,24 @@ const Index = () => {
               <label className="text-sm font-medium text-muted-foreground">
                 Talk with:
               </label>
-              <Select value={selectedPersona} onValueChange={setSelectedPersona}>
+              <Select value={selectedPersona} onValueChange={(value) => {
+                setSelectedPersona(value);
+                // Pre-warm Weaviate connection for performance
+                if (value !== 'openai-gpt-4o') {
+                  supabase.functions.invoke('weaviate-warmup', {
+                    body: { persona: value }
+                  }).catch(error => {
+                    console.log('Warmup request failed (non-critical):', error);
+                  });
+                }
+              }}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Talk with ..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
                   <SelectItem value="barbie">Barbie</SelectItem>
-                  <SelectItem value="homer-simpson">Homer Simpson</SelectItem>
+                  <SelectItem value="homer">Homer Simpson</SelectItem>
                   <SelectItem value="jesus">Jesus</SelectItem>
                 </SelectContent>
               </Select>

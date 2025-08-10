@@ -2,3 +2,9 @@ project_id = "vqexgyoqjrisytyncfqd"
 
 [functions.generate-vectorstore]
 verify_jwt = false
+
+[functions.weaviate-chat]
+verify_jwt = false
+
+[functions.weaviate-warmup]
+verify_jwt = false
