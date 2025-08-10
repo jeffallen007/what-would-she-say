@@ -2,7 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai?dts";
 import { ChatPromptTemplate } from "https://cdn.skypack.dev/@langchain/core/prompts?dts";
-import { OpenAIEmbeddings } from "https://cdn.skypack.dev/@langchain/openai?dts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const weaviateUrl = Deno.env.get('WEAVIATE_URL');
@@ -43,27 +42,12 @@ async function getWeaviateClient() {
   }
 }
 
-// Query Weaviate vectorstore for similar documents
+// Query Weaviate vectorstore for similar documents using nearText
 async function queryWeaviateContext(query: string, persona: string): Promise<string | null> {
   try {
     const client = await getWeaviateClient();
-    
-    // Generate embedding for the query
-    const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: openAIApiKey
-    });
 
-    console.log(`Generating embedding for query: "${query}"`);
-    const startEmbedTime = Date.now();
-    const queryEmbedding = await embeddings.embedQuery(query);
-    const embeddingTime = Date.now() - startEmbedTime;
-    console.log(`✅ Embedding generated successfully:`, {
-      dimensions: queryEmbedding.length,
-      model: 'text-embedding-ada-002',
-      timeMs: embeddingTime,
-      firstFewValues: queryEmbedding.slice(0, 3).map(v => v.toFixed(6)),
-      lastFewValues: queryEmbedding.slice(-3).map(v => v.toFixed(6))
-    });
+    console.log(`🔍 Using Weaviate nearText search for query: "${query}"`);
 
     // Determine collection name based on persona
     let collectionName = '';
@@ -82,7 +66,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       return null;
     }
 
-    // Build GraphQL query for Weaviate
+    // Build GraphQL query for Weaviate using nearText
     let whereClause = '';
     if (characterFilter) {
       whereClause = `, where: { path: ["character"], operator: Equal, valueText: "${characterFilter}" }`;
@@ -94,7 +78,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
         {
           Get {
             ${collectionName}(
-              nearVector: { vector: [${queryEmbedding.join(', ')}] }
+              nearText: { concepts: ["${query.replace(/"/g, '\\"')}"] }
               limit: 3
               ${extraWhere}
             ) {
@@ -110,11 +94,10 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     // Helper to execute a query and return documents
     const fetchDocs = async (extraWhere: string, attempt: string = '') => {
       const gql = buildQuery(extraWhere);
-      const queryVector = queryEmbedding.slice(0, 5).map(v => v.toFixed(4));
       
       console.log(`🔍 ${attempt} GraphQL Query to ${client.url}/v1/graphql:`, {
         collection: collectionName,
-        vectorPreview: `[${queryVector.join(', ')}...] (${queryEmbedding.length} dims)`,
+        queryText: query,
         whereClause: extraWhere || '(no filter)',
         fullQuery: gql.query.substring(0, 200) + '...'
       });
@@ -166,7 +149,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       return documents;
     };
 
-    console.log(`🎯 Starting Weaviate collection query: ${collectionName}`);
+    console.log(`🎯 Starting Weaviate nearText query: ${collectionName}`);
 
     // First attempt: with character filter (when provided)
     let documents: any[] = await fetchDocs(whereClause, '🔍 ATTEMPT 1 (with character filter)');
