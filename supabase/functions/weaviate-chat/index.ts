@@ -101,20 +101,37 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       console.log(`  Search Text: "${query}"`);
       console.log(`  Filter: ${extraWhere ? extraWhere.replace(/,\s*where:\s*\{\s*path:\s*\["character"\],\s*operator:\s*Equal,\s*valueText:\s*"([^"]+)"\s*\}/, 'Character = $1') : 'None'}`);
       
-      // Format and log the actual GraphQL query
-      const formattedQuery = gql.query
-        .replace(/\s+/g, ' ')
-        .replace(/{\s*/g, '{\n  ')
-        .replace(/}\s*/g, '\n}')
-        .replace(/\(\s*/g, '(\n    ')
-        .replace(/\)\s*/g, '\n  )')
-        .replace(/,\s*/g, ',\n    ')
+      // Format the GraphQL query with proper indentation
+      const cleanQuery = gql.query.trim();
+      const formattedQuery = cleanQuery
+        .replace(/\s+/g, ' ')  // Normalize whitespace
+        .replace(/\{\s*/g, '{\n')
+        .replace(/\s*\}/g, '\n}')
+        .replace(/\(\s*/g, '(\n')
+        .replace(/\s*\)/g, '\n)')
         .split('\n')
-        .map((line, index) => {
-          const indent = '  '.repeat(Math.max(0, (line.match(/\{/g) || []).length - (line.match(/\}/g) || []).length));
-          return line.trim() ? indent + line.trim() : '';
+        .map(line => line.trim())
+        .filter(line => line.length > 0)
+        .map((line, index, lines) => {
+          let depth = 0;
+          // Calculate depth based on previous lines
+          for (let i = 0; i < index; i++) {
+            const prevLine = lines[i];
+            depth += (prevLine.match(/\{/g) || []).length;
+            depth -= (prevLine.match(/\}/g) || []).length;
+            depth += (prevLine.match(/\(/g) || []).length;
+            depth -= (prevLine.match(/\)/g) || []).length;
+          }
+          
+          // Adjust for closing brackets on current line
+          if (line.includes('}') || line.includes(')')) {
+            depth -= (line.match(/\}/g) || []).length;
+            depth -= (line.match(/\)/g) || []).length;
+          }
+          
+          const indent = '  '.repeat(Math.max(0, depth));
+          return indent + line;
         })
-        .filter(line => line.trim())
         .join('\n');
       
       console.log(`📝 GraphQL Query:`);
