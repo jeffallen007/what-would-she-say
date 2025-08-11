@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, User, Bot } from "lucide-react";
+import { Loader2, Send, User, Bot, TrendingUp } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 interface Message {
@@ -269,30 +269,40 @@ const Index = () => {
           {/* Persona Selection */}
           <Card className="p-4">
             <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-muted-foreground">
-                Talk with:
-              </label>
-              <Select value={selectedPersona} onValueChange={(value) => {
-                setSelectedPersona(value);
-                // Pre-warm Weaviate connection for performance
-                if (value !== 'openai-gpt-4o') {
-                  supabase.functions.invoke('weaviate-warmup', {
-                    body: { persona: value }
-                  }).catch(error => {
-                    console.log('Warmup request failed (non-critical):', error);
-                  });
-                }
-              }}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Talk with ..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="barbie">Barbie</SelectItem>
-                  <SelectItem value="homer">Homer Simpson</SelectItem>
-                  <SelectItem value="jesus">Jesus</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-muted-foreground">
+                  Talk with:
+                </label>
+                <Select value={selectedPersona} onValueChange={(value) => {
+                  setSelectedPersona(value);
+                  // Pre-warm Weaviate connection for performance
+                  if (value !== 'openai-gpt-4o') {
+                    supabase.functions.invoke('weaviate-warmup', {
+                      body: { persona: value }
+                    }).catch(error => {
+                      console.log('Warmup request failed (non-critical):', error);
+                    });
+                  }
+                }}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Talk with ..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
+                    <SelectItem value="barbie">Barbie</SelectItem>
+                    <SelectItem value="homer">Homer Simpson</SelectItem>
+                    <SelectItem value="jesus">Jesus</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Instructional Arrow and Text */}
+              <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
+                <TrendingUp className="h-5 w-5 text-primary/70 rotate-12" />
+                <span className="text-sm bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-medium">
+                  Choose who to speak with ...
+                </span>
+              </div>
             </div>
           </Card>
 
