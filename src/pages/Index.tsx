@@ -298,7 +298,7 @@ const Index = () => {
               
               {/* Instructional Arrow and Text */}
               <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
-                <TrendingUp className="h-5 w-5 text-primary/70 rotate-12" />
+                <TrendingUp className="h-8 w-8 text-primary/70 -rotate-45" />
                 <span className="text-sm bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-medium">
                   Choose who to speak with ...
                 </span>
