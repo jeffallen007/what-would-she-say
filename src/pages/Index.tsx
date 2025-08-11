@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, User, Bot, TrendingUp } from "lucide-react";
+import { Loader2, Send, User, Bot, CornerDownRight } from "lucide-react";
 import { Helmet } from "react-helmet-async";
 
 interface Message {
@@ -298,7 +298,7 @@ const Index = () => {
               
               {/* Instructional Arrow and Text */}
               <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
-                <TrendingUp className="h-8 w-8 text-primary/70 -rotate-45" />
+                <CornerDownRight className="h-8 w-8 text-primary/70" />
                 <span className="text-sm bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-medium">
                   Choose who to speak with ...
                 </span>
