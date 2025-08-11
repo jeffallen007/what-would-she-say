@@ -294,6 +294,9 @@ const Index = () => {
                     <SelectItem value="jesus">Jesus</SelectItem>
                   </SelectContent>
                 </Select>
+                <span className="text-sm bg-gradient-to-r from-purple-500 to-purple-700 bg-clip-text text-transparent font-medium ml-2">
+                  (select who you want to talk with)
+                </span>
               </div>
             </div>
           </Card>
