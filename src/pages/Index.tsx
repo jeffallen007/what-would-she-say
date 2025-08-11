@@ -298,7 +298,23 @@ const Index = () => {
               
               {/* Instructional Arrow and Text */}
               <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
-                <CornerDownRight className="h-8 w-8 text-primary/70" />
+                <svg className="h-8 w-8 text-primary/70" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path 
+                    d="M8 12C12 8 20 8 24 16C24.5 17 24.8 18 25 19" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    fill="none"
+                  />
+                  <path 
+                    d="M21 17L25 19L23 23" 
+                    stroke="currentColor" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    fill="none"
+                  />
+                </svg>
                 <span className="text-sm bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-medium">
                   Choose who to speak with ...
                 </span>
