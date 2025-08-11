@@ -2,7 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai?dts";
 import { ChatPromptTemplate } from "https://cdn.skypack.dev/@langchain/core/prompts?dts";
-import weaviate from "https://esm.sh/weaviate-client@3.1.4";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const weaviateUrl = Deno.env.get('WEAVIATE_URL');
@@ -13,39 +12,49 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Weaviate client connection cache
-let weaviateClient: any = null;
-
-// Initialize Weaviate client with connection reuse
-async function getWeaviateClient(): Promise<any> {
-  if (weaviateClient) {
-    return weaviateClient;
-  }
-
-  try {
-    console.log('Initializing Weaviate client...');
-    
-    weaviateClient = await weaviate.connectToWeaviateCloud(weaviateUrl!, {
-      authCredentials: new weaviate.ApiKey(weaviateApiKey!),
-      headers: {
-        'X-OpenAI-Api-Key': openAIApiKey!,
+// Query Weaviate using REST API directly to avoid TLS issues with the TypeScript client
+async function queryWeaviateREST(query: string, collectionName: string, characterFilter?: string): Promise<any> {
+  const graphqlQuery = {
+    query: `
+      {
+        Get {
+          ${collectionName}(
+            nearText: { concepts: ["${query}"] }
+            ${characterFilter ? `where: { path: ["character"], operator: Equal, valueText: "${characterFilter}" }` : ''}
+            limit: 3
+          ) {
+            content
+            character
+            _additional {
+              distance
+            }
+          }
+        }
       }
-    });
+    `
+  };
 
-    console.log('Weaviate client initialized successfully');
-    return weaviateClient;
-  } catch (error) {
-    console.error('Error initializing Weaviate client:', error);
-    throw error;
+  const response = await fetch(`${weaviateUrl}/v1/graphql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${weaviateApiKey}`,
+      'X-OpenAI-Api-Key': openAIApiKey!,
+    },
+    body: JSON.stringify(graphqlQuery),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Weaviate request failed: ${response.status} ${response.statusText}`);
   }
+
+  return await response.json();
 }
 
-// Query Weaviate vectorstore for similar documents using TypeScript client
+// Query Weaviate vectorstore for similar documents using REST API
 async function queryWeaviateContext(query: string, persona: string): Promise<string | null> {
   try {
-    const client = await getWeaviateClient();
-
-    console.log(`🔍 Using Weaviate TypeScript client nearText search for query: "${query}"`);
+    console.log(`🔍 Using Weaviate REST API nearText search for query: "${query}"`);
 
     // Determine collection name based on persona
     let collectionName = '';
@@ -53,7 +62,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     
     if (persona === 'jesus') {
       collectionName = 'Jesus';
-      // Jesus doesn't need character filter - skip entirely like Python script
+      // Jesus doesn't need character filter
     } else if (persona === 'homer') {
       collectionName = 'Homer';
       characterFilter = 'Homer Simpson';
@@ -73,30 +82,17 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     const startQueryTime = Date.now();
     
     try {
-      const collection = client.collections.get(collectionName);
-      
-      // Build query options - only add where filter if characterFilter exists (not for Jesus)
-      const queryOptions: any = {
-        limit: 3,
-        returnMetadata: ['distance']
-      };
-      
-      // Only add filter for Homer and Barbie, not Jesus (mirrors Python logic)
-      if (characterFilter) {
-        queryOptions.where = client.query.Filter.by_property("character").equal(characterFilter);
-      }
-      
-      console.log(`📋 Query options:`, JSON.stringify(queryOptions, null, 2));
-      
-      const results = await collection.query.nearText(query, queryOptions);
+      const results = await queryWeaviateREST(query, collectionName, characterFilter);
       
       const queryTime = Date.now() - startQueryTime;
       
       console.log(`📊 Weaviate Response (${queryTime}ms):`);
       console.log(`  Status: Success`);
-      console.log(`  Documents returned: ${results.objects.length}`);
       
-      return await processClientDocuments(results, collectionName, persona, query, 'main request');
+      const documents = results?.data?.Get?.[collectionName] || [];
+      console.log(`  Documents returned: ${documents.length}`);
+      
+      return await processRESTDocuments(documents, collectionName, persona, query, 'main request');
       
     } catch (queryError) {
       const queryTime = Date.now() - startQueryTime;
@@ -106,13 +102,10 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       if (characterFilter) {
         console.log(`⚠️ Retrying without character filter...`);
         try {
-          const collection = client.collections.get(collectionName);
-          const fallbackResults = await collection.query.nearText(query, {
-            limit: 3,
-            returnMetadata: ['distance']
-          });
+          const fallbackResults = await queryWeaviateREST(query, collectionName);
+          const fallbackDocuments = fallbackResults?.data?.Get?.[collectionName] || [];
           
-          return await processClientDocuments(fallbackResults, collectionName, persona, query, 'without character filter');
+          return await processRESTDocuments(fallbackDocuments, collectionName, persona, query, 'without character filter');
         } catch (fallbackError) {
           console.error(`❌ Fallback query also failed:`, fallbackError);
         }
@@ -127,17 +120,15 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
   }
 }
 
-// Helper function to process documents from Weaviate TypeScript client response
-async function processClientDocuments(results: any, collectionName: string, persona: string, query: string, attempt: string): Promise<string | null> {
-  const documents = results.objects || [];
-  
+// Helper function to process documents from Weaviate REST API response
+async function processRESTDocuments(documents: any[], collectionName: string, persona: string, query: string, attempt: string): Promise<string | null> {
   console.log(`📄 Documents retrieved (${attempt}):`, {
     count: documents.length,
     collection: collectionName,
     preview: documents.slice(0, 2).map((doc: any) => ({
-      character: doc.properties?.character,
-      distance: doc.metadata?.distance,
-      contentPreview: doc.properties?.content?.substring(0, 100) + '...'
+      character: doc.character,
+      distance: doc._additional?.distance,
+      contentPreview: doc.content?.substring(0, 100) + '...'
     }))
   });
   
@@ -151,9 +142,9 @@ async function processClientDocuments(results: any, collectionName: string, pers
   console.log(`🎯 Applying similarity threshold: ${threshold} (distances below this are considered relevant)`);
   
   const documentsWithDistance = documents.map((doc: any) => {
-    const distance = doc.metadata?.distance || 1.0;
-    const content = doc.properties?.content || '';
-    const character = doc.properties?.character || '';
+    const distance = doc._additional?.distance || 1.0;
+    const content = doc.content || '';
+    const character = doc.character || '';
     
     return {
       content,
