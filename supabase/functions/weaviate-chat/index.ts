@@ -2,7 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai?dts";
 import { ChatPromptTemplate } from "https://cdn.skypack.dev/@langchain/core/prompts?dts";
-import weaviate, { WeaviateClient } from "https://esm.sh/weaviate-client@3.1.4";
+import weaviate from "https://esm.sh/weaviate-client@3.1.4";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const weaviateUrl = Deno.env.get('WEAVIATE_URL');
@@ -14,10 +14,10 @@ const corsHeaders = {
 };
 
 // Weaviate client connection cache
-let weaviateClient: WeaviateClient | null = null;
+let weaviateClient: any = null;
 
 // Initialize Weaviate client with connection reuse
-async function getWeaviateClient(): Promise<WeaviateClient> {
+async function getWeaviateClient(): Promise<any> {
   if (weaviateClient) {
     return weaviateClient;
   }
@@ -83,7 +83,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       
       // Only add filter for Homer and Barbie, not Jesus (mirrors Python logic)
       if (characterFilter) {
-        queryOptions.where = weaviate.query.Filter.by_property("character").equal(characterFilter);
+        queryOptions.where = client.query.Filter.by_property("character").equal(characterFilter);
       }
       
       console.log(`📋 Query options:`, JSON.stringify(queryOptions, null, 2));
