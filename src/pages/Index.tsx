@@ -298,18 +298,18 @@ const Index = () => {
               
               {/* Instructional Arrow and Text */}
               <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
-                <svg className="h-8 w-8 text-primary/70" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg className="h-10 w-12 text-primary/70" viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path 
-                    d="M8 12C12 8 20 8 24 16C24.5 17 24.8 18 25 19" 
+                    d="M5 8 Q 15 4, 25 8 T 38 18" 
                     stroke="currentColor" 
-                    strokeWidth="2" 
+                    strokeWidth="2.5" 
                     strokeLinecap="round" 
                     fill="none"
                   />
                   <path 
-                    d="M21 17L25 19L23 23" 
+                    d="M34 14 L 38 18 L 34 22" 
                     stroke="currentColor" 
-                    strokeWidth="2" 
+                    strokeWidth="2.5" 
                     strokeLinecap="round" 
                     strokeLinejoin="round" 
                     fill="none"
