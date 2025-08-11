@@ -295,32 +295,6 @@ const Index = () => {
                   </SelectContent>
                 </Select>
               </div>
-              
-              {/* Instructional Arrow and Text */}
-              <div className="hidden md:flex items-center gap-2 ml-4 animate-pulse">
-                <svg className="h-8 w-16 text-primary/70" viewBox="0 0 64 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Main curved line */}
-                  <path 
-                    d="M8 8 C 20 8, 35 8, 45 20" 
-                    stroke="currentColor" 
-                    strokeWidth="3" 
-                    strokeLinecap="round" 
-                    fill="none"
-                  />
-                  {/* Arrowhead */}
-                  <path 
-                    d="M41 16 L 45 20 L 41 24" 
-                    stroke="currentColor" 
-                    strokeWidth="3" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    fill="none"
-                  />
-                </svg>
-                <span className="text-sm bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent font-medium">
-                  Choose who to speak with ...
-                </span>
-              </div>
             </div>
           </Card>
 
