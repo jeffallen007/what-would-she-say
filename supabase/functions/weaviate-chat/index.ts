@@ -42,12 +42,12 @@ async function getWeaviateClient() {
   }
 }
 
-// Query Weaviate vectorstore for similar documents using nearText
+// Query Weaviate vectorstore for similar documents using REST API (mirrors Python client)
 async function queryWeaviateContext(query: string, persona: string): Promise<string | null> {
   try {
     const client = await getWeaviateClient();
 
-    console.log(`🔍 Using Weaviate nearText search for query: "${query}"`);
+    console.log(`🔍 Using Weaviate REST API nearText search for query: "${query}"`);
 
     // Determine collection name based on persona
     let collectionName = '';
@@ -55,6 +55,7 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
     
     if (persona === 'jesus') {
       collectionName = 'Jesus';
+      // Jesus doesn't need character filter
     } else if (persona === 'homer') {
       collectionName = 'Homer';
       characterFilter = 'Homer Simpson';
@@ -66,184 +67,151 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
       return null;
     }
 
-    // Build GraphQL query for Weaviate using nearText
-    let whereClause = '';
-    if (characterFilter) {
-      whereClause = `, where: { path: ["character"], operator: Equal, valueText: "${characterFilter}" }`;
-    }
-
-    // Helper to build a GraphQL query with optional where clause
-    const buildQuery = (extraWhere: string) => ({
-      query: `
-        {
-          Get {
-            ${collectionName}(
-              nearText: { concepts: ["${query.replace(/"/g, '\\"')}"] }
-              limit: 3
-              ${extraWhere}
-            ) {
-              content
-              character
-              _additional { distance }
-            }
-          }
-        }
-      `
-    });
-
-    // Helper to execute a query and return documents
-    const fetchDocs = async (extraWhere: string, attempt: string = '') => {
-      const gql = buildQuery(extraWhere);
-      
-      // Log query details in a clean format
-      console.log(`🔍 ${attempt} - Query Details:`);
-      console.log(`  Collection: ${collectionName}`);
-      console.log(`  Search Text: "${query}"`);
-      console.log(`  Filter: ${extraWhere ? extraWhere.replace(/,\s*where:\s*\{\s*path:\s*\["character"\],\s*operator:\s*Equal,\s*valueText:\s*"([^"]+)"\s*\}/, 'Character = $1') : 'None'}`);
-      
-      // Format the GraphQL query with proper indentation
-      const cleanQuery = gql.query.trim();
-      const formattedQuery = cleanQuery
-        .replace(/\s+/g, ' ')  // Normalize whitespace
-        .replace(/\{\s*/g, '{\n')
-        .replace(/\s*\}/g, '\n}')
-        .replace(/\(\s*/g, '(\n')
-        .replace(/\s*\)/g, '\n)')
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .map((line, index, lines) => {
-          let depth = 0;
-          // Calculate depth based on previous lines
-          for (let i = 0; i < index; i++) {
-            const prevLine = lines[i];
-            depth += (prevLine.match(/\{/g) || []).length;
-            depth -= (prevLine.match(/\}/g) || []).length;
-            depth += (prevLine.match(/\(/g) || []).length;
-            depth -= (prevLine.match(/\)/g) || []).length;
-          }
-          
-          // Adjust for closing brackets on current line
-          if (line.includes('}') || line.includes(')')) {
-            depth -= (line.match(/\}/g) || []).length;
-            depth -= (line.match(/\)/g) || []).length;
-          }
-          
-          const indent = '  '.repeat(Math.max(0, depth));
-          return indent + line;
-        })
-        .join('\n');
-      
-      console.log(`📝 GraphQL Query:`);
-      console.log(formattedQuery);
-      
-      const startQueryTime = Date.now();
-      const res = await fetch(`${client.url}/v1/graphql`, {
-        method: 'POST',
-        headers: client.headers,
-        body: JSON.stringify(gql),
-      });
-      const queryTime = Date.now() - startQueryTime;
-      
-      if (!res.ok) {
-        console.error(`❌ Weaviate HTTP Error (${queryTime}ms):`);
-        console.error(`  Status: ${res.status} ${res.statusText}`);
-        console.error(`  URL: ${client.url}/v1/graphql`);
-        throw new Error(`Weaviate query failed: ${res.status} ${res.statusText}`);
-      }
-      
-      const json = await res.json();
-      
-      // Log response in a clean format
-      console.log(`📊 Weaviate Response (${queryTime}ms):`);
-      console.log(`  Status: ${json.errors ? 'Error' : 'Success'}`);
-      console.log(`  Data Available: ${!!json.data}`);
-      
-      if (json.errors && json.errors.length > 0) {
-        console.error(`❌ GraphQL Errors (${json.errors.length}):`);
-        json.errors.forEach((error: any, index: number) => {
-          console.error(`  Error ${index + 1}:`);
-          console.error(`    Message: ${error.message}`);
-          if (error.path) console.error(`    Path: ${error.path.join(' > ')}`);
-          if (error.locations) console.error(`    Location: line ${error.locations[0]?.line}, column ${error.locations[0]?.column}`);
-        });
-        return [] as any[];
-      }
-      
-      const documents = json.data?.Get?.[collectionName] ?? [];
-      console.log(`📄 Documents retrieved:`, {
-        count: documents.length,
-        collection: collectionName,
-        attempt: attempt,
-        preview: documents.slice(0, 2).map((doc: any) => ({
-          character: doc.character,
-          distance: doc._additional?.distance,
-          contentPreview: doc.content?.substring(0, 100) + '...'
-        }))
-      });
-      
-      return documents;
+    // Build REST API request body (mirrors Python client behavior)
+    const requestBody: any = {
+      query: query,
+      limit: 3
     };
 
-    console.log(`🎯 Starting Weaviate nearText query: ${collectionName}`);
-
-    // First attempt: with character filter (when provided)
-    let documents: any[] = await fetchDocs(whereClause, '🔍 ATTEMPT 1 (with character filter)');
-
-    // Fallback 1: if nothing found and we used a character filter, retry without filter
-    if ((!documents || documents.length === 0) && characterFilter) {
-      console.log(`⚠️ No docs found with character filter for ${persona}. Retrying without character filter...`);
-      documents = await fetchDocs('', '🔍 ATTEMPT 2 (no character filter)');
+    // Only add character filter when needed (not for Jesus)
+    if (characterFilter) {
+      requestBody.where = {
+        path: ["character"],
+        operator: "Equal",
+        valueString: characterFilter
+      };
     }
 
-    // Apply similarity threshold and log filtering process
-    const threshold = 0.8; // Lower distance = higher similarity in Weaviate
-    console.log(`🎯 Applying similarity threshold: ${threshold} (distances below this are considered relevant)`);
+    console.log(`🔍 Query Details:`);
+    console.log(`  Collection: ${collectionName}`);
+    console.log(`  Search Text: "${query}"`);
+    console.log(`  Character Filter: ${characterFilter || 'None'}`);
+    console.log(`  Request Body:`, JSON.stringify(requestBody, null, 2));
+
+    const startQueryTime = Date.now();
     
-    const allDocsWithScores = (documents || []).map((doc: any) => ({
-      character: doc.character,
-      distance: doc._additional?.distance,
-      isRelevant: doc._additional?.distance < threshold,
-      contentPreview: doc.content?.substring(0, 150) + '...'
-    }));
-    
-    console.log(`📊 All documents with similarity scores:`, allDocsWithScores);
-    
-    let relevantDocs = (documents || []).filter((doc: any) => doc._additional.distance < threshold);
-
-    // Fallback 2: if nothing above threshold and we used a character filter, retry no-filter and re-apply threshold
-    if (relevantDocs.length === 0 && characterFilter) {
-      console.log(`⚠️ No docs above threshold with character filter for ${persona}. Retrying without character filter...`);
-      const unfilteredDocs = await fetchDocs('', '🔍 ATTEMPT 3 (no filter, retry threshold)');
-      const unfilteredWithScores = (unfilteredDocs || []).map((doc: any) => ({
-        character: doc.character,
-        distance: doc._additional?.distance,
-        isRelevant: doc._additional?.distance < threshold,
-        contentPreview: doc.content?.substring(0, 150) + '...'
-      }));
-      console.log(`📊 Unfiltered documents with similarity scores:`, unfilteredWithScores);
-      relevantDocs = (unfilteredDocs || []).filter((doc: any) => doc._additional.distance < threshold);
-    }
-
-    if (!relevantDocs || relevantDocs.length === 0) {
-      console.log(`❌ No relevant documents found for ${persona} above threshold ${threshold}`);
-      return null;
-    }
-
-    const context = relevantDocs.map((doc: any) => doc.content).join('\n\n');
-
-    console.log(`✅ Successfully retrieved context for ${persona}:`, {
-      relevantDocsCount: relevantDocs.length,
-      distances: relevantDocs.map((d: any) => d._additional.distance.toFixed(3)),
-      contextLength: context.length,
-      contextPreview: context.substring(0, 200) + '...'
+    // Use REST API endpoint for nearText search
+    const res = await fetch(`${client.url}/v1/objects/${collectionName}/nearText`, {
+      method: 'POST',
+      headers: client.headers,
+      body: JSON.stringify(requestBody),
     });
-
-    return context;
+    
+    const queryTime = Date.now() - startQueryTime;
+    
+    if (!res.ok) {
+      console.error(`❌ Weaviate HTTP Error (${queryTime}ms):`);
+      console.error(`  Status: ${res.status} ${res.statusText}`);
+      console.error(`  URL: ${client.url}/v1/objects/${collectionName}/nearText`);
+      const errorText = await res.text();
+      console.error(`  Response: ${errorText}`);
+      
+      // Fallback: try without character filter if original request had one
+      if (characterFilter) {
+        console.log(`⚠️ Retrying without character filter...`);
+        const fallbackBody = {
+          query: query,
+          limit: 3
+        };
+        
+        const fallbackRes = await fetch(`${client.url}/v1/objects/${collectionName}/nearText`, {
+          method: 'POST',
+          headers: client.headers,
+          body: JSON.stringify(fallbackBody),
+        });
+        
+        if (fallbackRes.ok) {
+          const fallbackJson = await fallbackRes.json();
+          return await processPlatformDocsuments(fallbackJson, persona, query, 'without character filter');
+        }
+      }
+      
+      throw new Error(`Weaviate query failed: ${res.status} ${res.statusText}`);
+    }
+    
+    const json = await res.json();
+    
+    console.log(`📊 Weaviate Response (${queryTime}ms):`);
+    console.log(`  Status: Success`);
+    console.log(`  Raw Response:`, JSON.stringify(json, null, 2));
+    
+    return await processPlatformDocsuments(json, persona, query, 'main request');
+    
   } catch (error) {
     console.error(`Error querying Weaviate for ${persona}:`, error);
     return null;
   }
+}
+
+// Helper function to process documents from Weaviate response
+async function processPlatformDocsuments(json: any, persona: string, query: string, attempt: string): Promise<string | null> {
+  // Handle different response formats from Weaviate REST API
+  let documents: any[] = [];
+  
+  if (json.objects) {
+    documents = json.objects;
+  } else if (Array.isArray(json)) {
+    documents = json;
+  } else if (json.data) {
+    documents = json.data;
+  }
+  
+  console.log(`📄 Documents retrieved (${attempt}):`, {
+    count: documents.length,
+    responseStructure: Object.keys(json),
+    preview: documents.slice(0, 2).map((doc: any) => ({
+      properties: Object.keys(doc.properties || doc || {}),
+      distance: doc.additional?.distance || doc._additional?.distance,
+      contentPreview: (doc.properties?.content || doc.content)?.substring(0, 100) + '...'
+    }))
+  });
+  
+  if (!documents || documents.length === 0) {
+    console.log(`❌ No documents found for ${persona}`);
+    return null;
+  }
+  
+  // Apply similarity threshold (mirrors Python client behavior)
+  const threshold = 0.8; // Lower distance = higher similarity in Weaviate
+  console.log(`🎯 Applying similarity threshold: ${threshold} (distances below this are considered relevant)`);
+  
+  const documentsWithDistance = documents.map((doc: any) => {
+    const distance = doc.additional?.distance || doc._additional?.distance || 1.0;
+    const content = doc.properties?.content || doc.content || '';
+    const character = doc.properties?.character || doc.character || '';
+    
+    return {
+      content,
+      character,
+      distance,
+      isRelevant: distance < threshold
+    };
+  });
+  
+  console.log(`📊 All documents with similarity scores:`, documentsWithDistance.map(doc => ({
+    character: doc.character,
+    distance: doc.distance.toFixed(3),
+    isRelevant: doc.isRelevant,
+    contentPreview: doc.content.substring(0, 150) + '...'
+  })));
+  
+  const relevantDocs = documentsWithDistance.filter(doc => doc.isRelevant);
+  
+  if (relevantDocs.length === 0) {
+    console.log(`❌ No relevant documents found for ${persona} above threshold ${threshold}`);
+    return null;
+  }
+  
+  const context = relevantDocs.map(doc => doc.content).join('\n\n');
+  
+  console.log(`✅ Successfully retrieved context for ${persona}:`, {
+    relevantDocsCount: relevantDocs.length,
+    distances: relevantDocs.map(d => d.distance.toFixed(3)),
+    contextLength: context.length,
+    contextPreview: context.substring(0, 200) + '...'
+  });
+  
+  return context;
 }
 
 // Get persona-specific prompt template
