@@ -137,8 +137,8 @@ async function processRESTDocuments(documents: any[], collectionName: string, pe
     return null;
   }
   
-  // Apply similarity threshold (mirrors Python client behavior)
-  const threshold = 0.8; // Lower distance = higher similarity in Weaviate
+  // Apply similarity threshold (adjusted for compression)
+  const threshold = 0.85; // Lower distance = higher similarity in Weaviate, increased to 0.85 for compressed vectors
   console.log(`🎯 Applying similarity threshold: ${threshold} (distances below this are considered relevant)`);
   
   const documentsWithDistance = documents.map((doc: any) => {
