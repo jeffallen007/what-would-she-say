@@ -35,6 +35,12 @@ __pycache__/
 
 # Ignore virtual environment
 venv/
+.venv
+.venv/
 
 # Ignore environment variables
 .env
+
+# Ignore python version
+.python-version
+
