@@ -26,6 +26,9 @@ dist-ssr
 # Ignore vectorstore databases
 scripts/vectorstore-generation/vector-store/
 
+# Read-only Weaviate investigation exports (may contain source content and vectors)
+scripts/vector-investigation/data/
+
 # Ignore environment files
 scripts/vectorstore-generation/.env
 
@@ -43,4 +46,3 @@ venv/
 
 # Ignore python version
 .python-version
-

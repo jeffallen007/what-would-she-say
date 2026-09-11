@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1740" viewBox="0 0 1400 1740" role="img" aria-labelledby="title description">
+  <title id="title">What Would She Say vector store generation and RAG process</title>
+  <desc id="description">A flow diagram showing source material becoming documents and embeddings in Weaviate, then retrieval and OpenAI answer generation at chat time.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 Z" fill="#65758b"/></marker>
+    <style>
+      text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #172033; }
+      .title { font-size: 36px; font-weight: 750; }
+      .sub { font-size: 18px; fill: #536176; }
+      .phase { font-size: 20px; font-weight: 700; fill: #ffffff; letter-spacing: .5px; }
+      .box-title { font-size: 21px; font-weight: 700; }
+      .box-text { font-size: 16px; fill: #3b495d; }
+      .small { font-size: 14px; fill: #536176; }
+      .arrow { stroke: #65758b; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+  <rect width="1400" height="1740" fill="#f7f9fc"/>
+  <text x="700" y="58" text-anchor="middle" class="title">Vector Store Generation and RAG Request Flow</text>
+  <text x="700" y="90" text-anchor="middle" class="sub">What Would (S)he Say · current Weaviate architecture</text>
+
+  <rect x="80" y="125" width="1240" height="48" rx="12" fill="#2563eb"/>
+  <text x="110" y="157" class="phase">OFFLINE INGESTION — performed before users chat</text>
+
+  <rect x="100" y="215" width="250" height="164" rx="18" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+  <text x="225" y="255" text-anchor="middle" class="box-title">1. Source material</text>
+  <text x="225" y="289" text-anchor="middle" class="box-text">Barbie screenplay PDF</text>
+  <text x="225" y="316" text-anchor="middle" class="box-text">Simpsons dialogue CSV</text>
+  <text x="225" y="343" text-anchor="middle" class="box-text">Bible text file</text>
+
+  <rect x="455" y="215" width="250" height="164" rx="18" fill="#ecfdf5" stroke="#34d399" stroke-width="2"/>
+  <text x="580" y="255" text-anchor="middle" class="box-title">2. Parse into documents</text>
+  <text x="580" y="289" text-anchor="middle" class="box-text">Python loaders turn source</text>
+  <text x="580" y="316" text-anchor="middle" class="box-text">content into individual</text>
+  <text x="580" y="343" text-anchor="middle" class="box-text">searchable documents</text>
+
+  <rect x="810" y="215" width="250" height="164" rx="18" fill="#fef3c7" stroke="#fbbf24" stroke-width="2"/>
+  <text x="935" y="255" text-anchor="middle" class="box-title">3. Add metadata</text>
+  <text x="935" y="289" text-anchor="middle" class="box-text">content, source, doc_id</text>
+  <text x="935" y="316" text-anchor="middle" class="box-text">character, verse, page,</text>
+  <text x="935" y="343" text-anchor="middle" class="box-text">type, and voice-over flag</text>
+
+  <rect x="1130" y="215" width="190" height="164" rx="18" fill="#f3e8ff" stroke="#c084fc" stroke-width="2"/>
+  <text x="1225" y="255" text-anchor="middle" class="box-title">4. Batch upload</text>
+  <text x="1225" y="289" text-anchor="middle" class="box-text">Stable UUIDs</text>
+  <text x="1225" y="316" text-anchor="middle" class="box-text">to persona</text>
+  <text x="1225" y="343" text-anchor="middle" class="box-text">collections</text>
+
+  <path d="M350 297 H455" class="arrow"/>
+  <path d="M705 297 H810" class="arrow"/>
+  <path d="M1060 297 H1130" class="arrow"/>
+
+  <path d="M1225 379 V468 H700 V518" class="arrow"/>
+  <rect x="410" y="520" width="580" height="186" rx="20" fill="#ede9fe" stroke="#8b5cf6" stroke-width="3"/>
+  <text x="700" y="564" text-anchor="middle" class="box-title">5. Weaviate generates embeddings</text>
+  <text x="700" y="599" text-anchor="middle" class="box-text">The text2vec-openai module calls OpenAI</text>
+  <text x="700" y="628" text-anchor="middle" class="box-text">using text-embedding-3-large (3,072 dimensions)</text>
+  <text x="700" y="665" text-anchor="middle" class="small">Each document becomes a numerical vector representing its meaning.</text>
+
+  <path d="M700 706 V782" class="arrow"/>
+  <rect x="315" y="785" width="770" height="175" rx="20" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="700" y="831" text-anchor="middle" class="box-title">6. Stored Weaviate collections</text>
+  <text x="700" y="868" text-anchor="middle" class="box-text">Barbie · Homer · Jesus</text>
+  <text x="700" y="901" text-anchor="middle" class="box-text">Each record contains: UUID + content + metadata + embedding</text>
+  <text x="700" y="932" text-anchor="middle" class="small">This is the migration boundary: Supabase pgvector can replace this layer.</text>
+
+  <rect x="80" y="1035" width="1240" height="48" rx="12" fill="#0f766e"/>
+  <text x="110" y="1067" class="phase">RUNTIME RAG — performed for each chat question</text>
+
+  <rect x="100" y="1125" width="260" height="158" rx="18" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+  <text x="230" y="1165" text-anchor="middle" class="box-title">1. User interaction</text>
+  <text x="230" y="1199" text-anchor="middle" class="box-text">Selects a persona, enters</text>
+  <text x="230" y="1226" text-anchor="middle" class="box-text">a question, and presses Send</text>
+
+  <rect x="440" y="1125" width="260" height="158" rx="18" fill="#ecfdf5" stroke="#34d399" stroke-width="2"/>
+  <text x="570" y="1165" text-anchor="middle" class="box-title">2. Edge Function</text>
+  <text x="570" y="1199" text-anchor="middle" class="box-text">Frontend sends</text>
+  <text x="570" y="1226" text-anchor="middle" class="box-text">prompt + persona to</text>
+  <text x="570" y="1253" text-anchor="middle" class="box-text">weaviate-chat</text>
+
+  <rect x="780" y="1125" width="260" height="158" rx="18" fill="#fef3c7" stroke="#fbbf24" stroke-width="2"/>
+  <text x="910" y="1165" text-anchor="middle" class="box-title">3. Semantic retrieval</text>
+  <text x="910" y="1199" text-anchor="middle" class="box-text">nearText search gets</text>
+  <text x="910" y="1226" text-anchor="middle" class="box-text">up to 3 nearest documents</text>
+  <text x="910" y="1253" text-anchor="middle" class="box-text">with persona filters</text>
+
+  <rect x="1120" y="1125" width="200" height="158" rx="18" fill="#f3e8ff" stroke="#c084fc" stroke-width="2"/>
+  <text x="1220" y="1165" text-anchor="middle" class="box-title">4. Context</text>
+  <text x="1220" y="1199" text-anchor="middle" class="box-text">Keep results</text>
+  <text x="1220" y="1226" text-anchor="middle" class="box-text">below 0.85</text>
+  <text x="1220" y="1253" text-anchor="middle" class="box-text">distance</text>
+
+  <path d="M360 1204 H440" class="arrow"/>
+  <path d="M700 1204 H780" class="arrow"/>
+  <path d="M1040 1204 H1120" class="arrow"/>
+  <path d="M910 1125 V1015 H700 V960" class="arrow"/>
+
+  <path d="M1220 1283 V1365 H700 V1415" class="arrow"/>
+  <rect x="370" y="1418" width="660" height="166" rx="20" fill="#fce7f3" stroke="#f472b6" stroke-width="3"/>
+  <text x="700" y="1460" text-anchor="middle" class="box-title">5. Build the RAG prompt</text>
+  <text x="700" y="1495" text-anchor="middle" class="box-text">Persona system instructions + retrieved context + user question</text>
+  <text x="700" y="1530" text-anchor="middle" class="box-text">If retrieval fails, use only persona instructions.</text>
+
+  <path d="M700 1584 V1630" class="arrow"/>
+  <rect x="370" y="1632" width="660" height="76" rx="20" fill="#dcfce7" stroke="#22c55e" stroke-width="3"/>
+  <text x="700" y="1678" text-anchor="middle" class="box-title">6. OpenAI gpt-4o-mini generates response → UI displays it</text>
+</svg>

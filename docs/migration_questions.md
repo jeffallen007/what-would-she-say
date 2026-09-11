@@ -154,7 +154,7 @@ Answer: the tier/cluster size is not stored in the repo. The Weaviate console is
 Answer: Jesus source text has 31,102 lines total in `scripts/vectorstore-generation/source-files/bible.txt`, so the Jesus collection is approximately 31,101 documents if ingested 1:1 from verse lines. Homer source CSV has 158,315 lines total in `scripts/vectorstore-generation/source-files/simpsons_dataset.csv`, so the Homer collection is approximately 158,314 documents if ingested 1:1 from rows. Barbie scale is not recoverable from the repo because the PDF parser groups scene/dialogue/action into documents and the live object count is not exported.
 
 Answer: Average chunk size and average chunks per document are not fixed in the Weaviate path. Jesus and Homer are effectively 1 source row or verse per object; Barbie is parser-driven and variable.
-- Total object count per Weaviate cloud is 570,870.
+- Verified Phase 0 live snapshot total is 190,290 objects: Barbie 1,274; Homer 158,014; Jesus 31,002. The previously recorded 570,870 figure was exactly three times this total and does not correspond to a reproducible Weaviate query, export, or calculation in this repository.
 
 ## Collections / Schema
 
