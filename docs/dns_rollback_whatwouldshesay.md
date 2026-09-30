@@ -2,6 +2,8 @@
 
 **Status:** Cutover applied by Jeff at 2026-09-30 03:53 UTC (2026-09-29 8:53 PM PDT). Jeff captured the GoDaddy zone privately before editing. The original pre-cutover snapshot was taken at 2026-09-30 03:25–03:30 UTC. Both authoritative nameservers returned the old Lovable IP with 600 s TTL by 03:46:38 UTC. The conservative old-cache expiry was 04:47 UTC; Jeff chose to cut over earlier because traffic is negligible and kept the Lovable project live for rollback.
 
+**Final state (2026-09-30 04:21 UTC):** PR #1 is merged and Vercel production is live. Jeff removed the custom domain from the Lovable project. The pre-cutover DNS values and cutover steps below are retained as historical records; the old one-step DNS rollback is no longer available. See [Final verification and current rollback](#final-verification-and-current-rollback).
+
 ## Source and limits
 
 `ns31.domaincontrol.com` and `ns32.domaincontrol.com` are the authoritative nameservers. Direct, non-recursive `dig` queries to both returned the same records and TTLs below. Public DNS does not provide a complete list of a zone's hostnames. Jeff confirmed that he captured the GoDaddy zone, but its complete contents have not been shared for inspection here. Do not commit verification-token or other sensitive TXT values to this repository.
@@ -46,8 +48,12 @@ TLS certificate validation succeeded for both `https://whatwouldshesay.com/` and
 
 After Jeff corrected the redirect, a second headless Chrome test began and stayed at `https://whatwouldshesay.com/`. Barbie, Homer, and Jesus again received HTTP 200 from warmup and chat, with answers rendered from the apex origin. There were no browser CORS errors, failed requests, JavaScript errors, console errors on the main page, or mixed-content warnings. A direct load of `/test-route-refresh` still rendered the app's Not Found page. This closes GATE 2, subject to the accepted stale-cache window for visitors who cached the old 3600 s DNS answers.
 
-## Rollback if the live domain fails
+## Final verification and current rollback
 
-Keep the Lovable custom domain in place until live-domain verification passes. At GoDaddy, restore `@` A to `185.158.133.1`. For `www`, remove the Vercel CNAME and restore A `185.158.133.1`. Use 600 s TTL during the rollback to limit further caching; after the old site is confirmed stable, restore the original 3600 s TTLs if desired. Leave all NS, MX, TXT, and other email-related records untouched. Verify both authoritative nameservers and HTTPS GET on apex and `www` after propagation.
+After Jeff disconnected the domain from Lovable, the authoritative GoDaddy nameserver still returned `@` A `216.198.79.1` and `www` CNAME `2e80b9c1fab2ce73.vercel-dns-017.com`. The apex returned HTTPS 200; `www` returned HTTPS 308 to the apex, then 200. Browser testing from the apex showed HTTP 200 for the warmup and chat requests for Barbie, Homer, and Jesus, with answers rendered and no CORS, JavaScript, console, or failed-request errors on the main page. A direct route refresh still rendered the app's Not Found page; its own 404 log is expected.
 
-The GoDaddy zone inventory is held privately by Jeff. Append any verification record names and a rollback timestamp if rollback becomes necessary. This public-DNS snapshot alone cannot establish every GoDaddy zone entry.
+Jeff reported no `_lovable` TXT record in GoDaddy. A direct query to the authoritative nameserver also returned no `_lovable` TXT answer. There is therefore no Lovable verification record to remove. Leave all NS, MX, SPF, DKIM, DMARC, mail, and other email-related records untouched. The complete GoDaddy zone inventory remains with Jeff; public DNS queries cannot prove the absence of every record.
+
+The Lovable GitHub account connection had already been removed, and the GitHub repository API returned no webhooks. Jeff previously confirmed the Lovable account is on the Free Plan with no active billing, so the current Lovable charge is $0 per month; the former paid-plan amount is not recorded here. A repository grep found no Lovable references in active application, build, or root documentation files. Historical migration documents and protected vectorstore research files still contain references as records of the migration.
+
+For a frontend regression, restore a previously Ready Vercel production deployment while keeping the current DNS records. Restoring only the old Lovable A records is no longer a valid rollback because the custom domain is disconnected there. A return to Lovable would first require Jeff to reattach and verify the domain in Lovable, then coordinate DNS changes and check HTTPS on both hostnames. Keep email records untouched in any rollback.
