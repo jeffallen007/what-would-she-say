@@ -72,9 +72,9 @@ Migration file: `supabase/migrations/<ts>_rag_persona_tables.sql`
    - No null or wrong-dimension embeddings.
    - 20 random IDs per table: cosine similarity to the snapshot vector ≥ 0.999 (halfvec precision check).
 4. **Index** (one session per table):
-   - `set maintenance_work_mem = '1GB';`
+   - On Small compute, use `set maintenance_work_mem = '256MB';` and `set max_parallel_maintenance_workers = 0;` for a serial HNSW build. The earlier 1 GB guidance is unsafe here: the parallel Jesus build tried to resize a `/dev/shm` segment to 1,070,625,280 bytes and failed with SQLSTATE 53100, despite ample data-volume space. Barbie and Homer happened to build with 1 GB, but that setting should not be reused for Small instances.
    - `create index ... using hnsw (embedding halfvec_cosine_ops);` with defaults m=16, ef_construction=64.
-   - Report build time, index size, and whether swap occurred. If it did, Jeff bumps compute to Medium,
+   - Report build time, index size, and whether swap occurred. If swap occurred, Jeff bumps compute to Medium,
      rebuilds, then drops back to Small.
 
 **GATE 2:** Report counts, verification results, and index sizes.

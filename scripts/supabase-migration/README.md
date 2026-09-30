@@ -28,6 +28,7 @@ dimensions. The loader compares 20 stored vectors per table against their
 original snapshot vectors and requires cosine similarity at least 0.999.
 
 After all three loads pass, the three `rag_*_hnsw.sql` migration files can be
-applied separately, one session per table, **only with approval**. They raise
-`maintenance_work_mem` to 1 GB and the statement timeout to 30 minutes for the
-index build, then reset both settings. The loader does not apply migrations.
+applied separately, one session per table, **only with approval**. On Small
+compute they use 256 MB of maintenance memory, disable parallel maintenance
+workers, and set a 30-minute statement timeout for the index build. They reset
+all three settings afterward. The loader does not apply migrations.
