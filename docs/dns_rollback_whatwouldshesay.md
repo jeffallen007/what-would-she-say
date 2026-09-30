@@ -36,13 +36,15 @@ Vercel's [domain setup guide](https://vercel.com/docs/domains/set-up-custom-doma
 | — | **No change** | `@` | NS | GoDaddy nameservers | Keep | Do not move DNS hosting. |
 | — | **No change now** | `_lovable` | TXT | No public record found | — | Do not remove a Lovable verification entry during cutover if GoDaddy shows one. |
 
-Jeff selected `whatwouldshesay.com` as the canonical address. The observed Vercel redirect currently sends `whatwouldshesay.com` to `www.whatwouldshesay.com`, so Jeff must change the project domain settings to serve the apex and redirect `www` to it. This is a Vercel project setting, not a GoDaddy DNS change. GATE 2 redirect verification remains pending until that setting is changed and rechecked.
+Jeff selected `whatwouldshesay.com` as the canonical address. Vercel initially redirected the apex to `www`; Jeff changed the project domain setting, with no GoDaddy DNS change. At approximately 2026-09-30 04:00 UTC, the apex served HTTP 200 directly and `www` returned HTTP 308 to `https://whatwouldshesay.com/`. GATE 2 redirect verification passed.
 
 ## Post-cutover verification
 
 At approximately 2026-09-30 03:54 UTC, both GoDaddy nameservers returned `@` A `216.198.79.1` (TTL 600 s) and `www` CNAME `2e80b9c1fab2ce73.vercel-dns-017.com` (TTL 600 s). Public resolvers `1.1.1.1` and `8.8.8.8` also returned the new records. Earlier cached Lovable answers may persist elsewhere until the old 3600 s TTL expires.
 
-TLS certificate validation succeeded for both `https://whatwouldshesay.com/` and `https://www.whatwouldshesay.com/`; both GET requests returned HTTP 200 from Vercel. The apex redirected to `www`. In a headless Chrome test starting at the apex, the dropdown contained GPT-4o, Barbie, Homer Simpson, and Jesus. Each of Barbie, Homer, and Jesus received HTTP 200 from both `weaviate-warmup` and `weaviate-chat`, and each response rendered in the page. The main page had no console errors, JavaScript errors, failed requests, or mixed-content warnings. A direct load of `/test-route-refresh` rendered the app's Not Found page; its own intentional 404 console message was the only error on that route.
+TLS certificate validation succeeded for both `https://whatwouldshesay.com/` and `https://www.whatwouldshesay.com/`; both GET requests ultimately returned HTTP 200 from Vercel. Initially, the apex redirected to `www`. In a headless Chrome test starting at the apex, the dropdown contained GPT-4o, Barbie, Homer Simpson, and Jesus. Each of Barbie, Homer, and Jesus received HTTP 200 from both `weaviate-warmup` and `weaviate-chat`, and each response rendered in the page. The main page had no console errors, JavaScript errors, failed requests, or mixed-content warnings. A direct load of `/test-route-refresh` rendered the app's Not Found page; its own intentional 404 console message was the only error on that route.
+
+After Jeff corrected the redirect, a second headless Chrome test began and stayed at `https://whatwouldshesay.com/`. Barbie, Homer, and Jesus again received HTTP 200 from warmup and chat, with answers rendered from the apex origin. There were no browser CORS errors, failed requests, JavaScript errors, console errors on the main page, or mixed-content warnings. A direct load of `/test-route-refresh` still rendered the app's Not Found page. This closes GATE 2, subject to the accepted stale-cache window for visitors who cached the old 3600 s DNS answers.
 
 ## Rollback if the live domain fails
 
