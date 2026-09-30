@@ -1,6 +1,6 @@
 # DNS cutover and rollback: whatwouldshesay.com
 
-**Status:** Pre-cutover snapshot, 2026-09-30 03:25–03:30 UTC (2026-09-29 evening Pacific). Jeff has captured the GoDaddy zone privately and lowered only the `@` and `www` A-record TTLs to 600 s; no routing values have changed. Both authoritative nameservers returned the original Lovable IP with 600 s TTL by 2026-09-30 03:46:38 UTC. Even without the exact edit time, waiting a full old TTL from that observation gives a conservative cutover time of **no earlier than 2026-09-30 04:47 UTC (2026-09-29 9:47 PM PDT)**.
+**Status:** Cutover applied by Jeff at 2026-09-30 03:53 UTC (2026-09-29 8:53 PM PDT). Jeff captured the GoDaddy zone privately before editing. The original pre-cutover snapshot was taken at 2026-09-30 03:25–03:30 UTC. Both authoritative nameservers returned the old Lovable IP with 600 s TTL by 03:46:38 UTC. The conservative old-cache expiry was 04:47 UTC; Jeff chose to cut over earlier because traffic is negligible and kept the Lovable project live for rollback.
 
 ## Source and limits
 
@@ -28,18 +28,24 @@ Vercel's [domain setup guide](https://vercel.com/docs/domains/set-up-custom-doma
 |---:|---|---|---|---|---:|---|
 | 1 | Edit existing record | `@` | A | `185.158.133.1` | 600 s | **Done:** lower TTL only; keep Lovable IP. |
 | 2 | Edit existing record | `www` | A | `185.158.133.1` | 600 s | **Done:** lower TTL only; keep Lovable IP. |
-| 3 | Wait | — | — | — | At least 3600 s | Count from the later TTL edit. With its time unavailable, wait until at least **2026-09-30 04:47 UTC / 9:47 PM PDT**, one hour after both nameservers were observed serving 600 s. |
-| 4 | Edit existing record | `@` | A | `216.198.79.1` | 600 s | Replace `185.158.133.1` only after step 3; leave one apex A record. |
-| 5 | Delete existing record | `www` | A | `185.158.133.1` | — | Required because a CNAME cannot coexist with `www` A. |
-| 6 | Add record | `www` | CNAME | `2e80b9c1fab2ce73.vercel-dns-017.com` | 600 s | Add immediately after step 5. |
+| 3 | Wait | — | — | — | At least 3600 s | **Skipped by Jeff:** cutover at 03:53 UTC, accepting possible stale Lovable answers until about 04:47 UTC. |
+| 4 | Edit existing record | `@` | A | `216.198.79.1` | 600 s | **Done:** replaced `185.158.133.1`; one apex A record remains. |
+| 5 | Delete existing record | `www` | A | `185.158.133.1` | — | **Done:** removed before adding CNAME. |
+| 6 | Add record | `www` | CNAME | `2e80b9c1fab2ce73.vercel-dns-017.com` | 600 s | **Done:** added after deleting `www` A. |
 | — | **No change** | `@`, `_dmarc`, DKIM/SPF/mail hosts, any others | **MX and all email-related records** | **Keep existing values** | **Keep existing TTLs** | Leave email service untouched throughout. |
 | — | **No change** | `@` | NS | GoDaddy nameservers | Keep | Do not move DNS hosting. |
 | — | **No change now** | `_lovable` | TXT | No public record found | — | Do not remove a Lovable verification entry during cutover if GoDaddy shows one. |
 
-Choose `whatwouldshesay.com` as the canonical domain and configure `www` to redirect to it in Vercel. That redirect is a Vercel project setting, not a GoDaddy record. If the dashboard recommends different DNS record types or extra verification, pause and reconcile the table before editing GoDaddy.
+The observed Vercel redirect currently sends `whatwouldshesay.com` to `www.whatwouldshesay.com`. The earlier migration plan assumed the opposite direction unless Jeff preferred otherwise. Canonical-domain preference is pending Jeff's confirmation; any redirect change is a Vercel project setting, not a GoDaddy DNS change.
+
+## Post-cutover verification
+
+At approximately 2026-09-30 03:54 UTC, both GoDaddy nameservers returned `@` A `216.198.79.1` (TTL 600 s) and `www` CNAME `2e80b9c1fab2ce73.vercel-dns-017.com` (TTL 600 s). Public resolvers `1.1.1.1` and `8.8.8.8` also returned the new records. Earlier cached Lovable answers may persist elsewhere until the old 3600 s TTL expires.
+
+TLS certificate validation succeeded for both `https://whatwouldshesay.com/` and `https://www.whatwouldshesay.com/`; both GET requests returned HTTP 200 from Vercel. The apex redirected to `www`. In a headless Chrome test starting at the apex, the dropdown contained GPT-4o, Barbie, Homer Simpson, and Jesus. Each of Barbie, Homer, and Jesus received HTTP 200 from both `weaviate-warmup` and `weaviate-chat`, and each response rendered in the page. The main page had no console errors, JavaScript errors, failed requests, or mixed-content warnings. A direct load of `/test-route-refresh` rendered the app's Not Found page; its own intentional 404 console message was the only error on that route.
 
 ## Rollback if the live domain fails
 
 Keep the Lovable custom domain in place until live-domain verification passes. At GoDaddy, restore `@` A to `185.158.133.1`. For `www`, remove the Vercel CNAME and restore A `185.158.133.1`. Use 600 s TTL during the rollback to limit further caching; after the old site is confirmed stable, restore the original 3600 s TTLs if desired. Leave all NS, MX, TXT, and other email-related records untouched. Verify both authoritative nameservers and HTTPS GET on apex and `www` after propagation.
 
-The GoDaddy zone inventory is held privately by Jeff. Append the actual time of the later TTL edit, any verification record names, and the cutover/rollback timestamps when available. This public-DNS snapshot alone cannot establish every GoDaddy zone entry.
+The GoDaddy zone inventory is held privately by Jeff. Append any verification record names and a rollback timestamp if rollback becomes necessary. This public-DNS snapshot alone cannot establish every GoDaddy zone entry.
