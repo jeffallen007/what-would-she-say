@@ -74,8 +74,11 @@ Migration file: `supabase/migrations/<ts>_rag_persona_tables.sql`
 4. **Index** (one session per table):
    - On Small compute, use `set maintenance_work_mem = '256MB';` and `set max_parallel_maintenance_workers = 0;` for a serial HNSW build. The earlier 1 GB guidance is unsafe here: the parallel Jesus build tried to resize a `/dev/shm` segment to 1,070,625,280 bytes and failed with SQLSTATE 53100, despite ample data-volume space. Barbie and Homer happened to build with 1 GB, but that setting should not be reused for Small instances.
    - `create index ... using hnsw (embedding halfvec_cosine_ops);` with defaults m=16, ef_construction=64.
-   - Report build time, index size, and whether swap occurred. If swap occurred, Jeff bumps compute to Medium,
-     rebuilds, then drops back to Small.
+   - Report build time and index size. Check swap only if the project's Supabase plan exposes advanced
+     Database Memory usage telemetry (Team, Enterprise, or Platform); an absent Swap series alone is
+     inconclusive because Supabase shows it only while swapping. On plans without that telemetry, record
+     swap as unverified rather than treating it as a failed gate. If sustained swap is observed, Jeff bumps
+     compute to Medium, rebuilds, then drops back to Small.
 
 **GATE 2:** Report counts, verification results, and index sizes.
 
