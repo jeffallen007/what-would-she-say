@@ -1,16 +1,16 @@
 # Offline tools and backend infrastructure
-scripts/
-docs/
-supabase/
+/scripts/
+/docs/
+/supabase/
 
 # Repository-only files
-.claude/
-README.md
-README_TESTING.md
-LICENSE
-notebook_scratch.ipynb
-requirements.txt
-schema.json
-components.json
-eslint.config.js
-bun.lockb
+/.claude/
+/README.md
+/README_TESTING.md
+/LICENSE
+/notebook_scratch.ipynb
+/requirements.txt
+/schema.json
+/components.json
+/eslint.config.js
+/bun.lockb
