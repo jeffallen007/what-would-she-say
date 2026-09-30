@@ -18,7 +18,7 @@ interface Message {
 
 const personaConfig = {
   'openai-gpt-4o': { 
-    dropdownLabel: 'GPT-4o', 
+    dropdownLabel: 'GPT-4o mini',
     headerName: '(s)he'
   },
   'jesus': { 
@@ -64,7 +64,7 @@ const getDefaultPersona = () => {
     return 'jesus';
   }
   
-  console.log('Defaulting to GPT-4o');
+  console.log('Defaulting to GPT-4o mini');
   return 'openai-gpt-4o';
 };
 
@@ -288,7 +288,7 @@ const Index = () => {
                     <SelectValue placeholder="Talk with ..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="openai-gpt-4o">GPT-4o</SelectItem>
+                    <SelectItem value="openai-gpt-4o">GPT-4o mini</SelectItem>
                     <SelectItem value="barbie">Barbie</SelectItem>
                     <SelectItem value="homer">Homer Simpson</SelectItem>
                     <SelectItem value="jesus">Jesus</SelectItem>
