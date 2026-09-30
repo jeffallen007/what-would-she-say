@@ -36,7 +36,7 @@ Vercel's [domain setup guide](https://vercel.com/docs/domains/set-up-custom-doma
 | — | **No change** | `@` | NS | GoDaddy nameservers | Keep | Do not move DNS hosting. |
 | — | **No change now** | `_lovable` | TXT | No public record found | — | Do not remove a Lovable verification entry during cutover if GoDaddy shows one. |
 
-The observed Vercel redirect currently sends `whatwouldshesay.com` to `www.whatwouldshesay.com`. The earlier migration plan assumed the opposite direction unless Jeff preferred otherwise. Canonical-domain preference is pending Jeff's confirmation; any redirect change is a Vercel project setting, not a GoDaddy DNS change.
+Jeff selected `whatwouldshesay.com` as the canonical address. The observed Vercel redirect currently sends `whatwouldshesay.com` to `www.whatwouldshesay.com`, so Jeff must change the project domain settings to serve the apex and redirect `www` to it. This is a Vercel project setting, not a GoDaddy DNS change. GATE 2 redirect verification remains pending until that setting is changed and rechecked.
 
 ## Post-cutover verification
 
