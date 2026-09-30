@@ -20,25 +20,13 @@ Vector Stores for each persona are pre-generated using Langchain and OpenAI. The
 For more info on the vector store generation process, see: [README.md in scripts/vectorstore-generation](https://github.com/jeffallen007/what-would-she-say/blob/main/scripts/vectorstore-generation/README.md)
 
 ### 2. Runtime
-- When a user selects a "persona" via the drop down menu of the web application, a retriever is generated for the corresponding persona's Vector Store.
-- When the user enters a question / prompt into the Chat window and clicks Submit, the application:
-    1. creates "context" by querying the retriever using a similarity match (and in some cases filtering by "character"),
-    2. creates a RAG Chain with user question, context retrieved, and persona specific prompt,
-    3. invokes this RAG Chain request to OpenAI, and
-    4. displays the llm response to the user.
+- The React frontend calls Supabase Edge Functions when a user submits a prompt. Selecting a custom persona also sends a non-critical warmup request.
+- For Barbie, Homer, and Jesus, the Edge Function retrieves relevant Weaviate context, builds a persona-specific prompt, and sends it to OpenAI. The frontend displays the returned answer.
+- The runtime chat model is `gpt-4o-mini` for every persona, including the generic assistant.
 
-## How was this application developed?
+## Hosting and services
 
-The GUI and edge functions were vibe coded using Lovable. The Vector Store generation was coded in python using VS Code.
-
-## What platforms were used to build this application?
-
-This application was built by vibe coding the front end UI on Lovable, batch uploading Document objects to Weaviate Collection for vector store generation, connecting the backend using Supabase, and creating RAG (retrieval augmented generation) prompts, and llm proof of concepts using python in VS Code.
-
-- VS Code
-- Lovable.dev
-- Supabase.com
-- Weaviate.com
+The static Vite frontend is hosted on Vercel at [whatwouldshesay.com](https://whatwouldshesay.com), with `www` redirecting to the apex. Supabase hosts the Edge Functions, Weaviate currently hosts the persona vector stores, and the source code is maintained in GitHub. Python scripts were used to generate the vector stores.
 
 ## What technologies are used for this project?
 
@@ -51,35 +39,20 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
-## Updating or enhancing this project
+## Local development and deployment
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/f1572220-763e-4b3a-b3d1-53746ab6c5ee) and start prompting.
-
-Or start your own project at [Lovable.dev](https://lovable.dev)
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and create a new fork.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Install Node.js and npm, then run:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone https://github.com/jeffallen007/what-would-she-say.git
+cd what-would-she-say
+npm ci
 npm run dev
 ```
+
+Run `npm run build` to generate the static site in `dist/`, and `npm run preview` to inspect that build locally.
+
+For deployment, push a branch to GitHub to get a Vercel preview. After review, merge it into `main` for the production deployment. The root `vercel.json` sets the Vite build, npm install command, output directory, and SPA rewrite. The Supabase Edge Functions deploy separately from the static frontend.
 
 ## Credits
 
