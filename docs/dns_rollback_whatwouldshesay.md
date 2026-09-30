@@ -1,6 +1,6 @@
 # DNS cutover and rollback: whatwouldshesay.com
 
-**Status:** Pre-cutover snapshot, 2026-09-30 03:25–03:30 UTC (2026-09-29 evening Pacific). Jeff has captured the GoDaddy zone privately and lowered only the `@` and `www` A-record TTLs to 600 s; no routing values have changed. Both authoritative nameservers returned the original Lovable IP with 600 s TTL at 2026-09-30 03:46 UTC. The exact time of the later TTL edit is still needed to calculate the safe cutover time.
+**Status:** Pre-cutover snapshot, 2026-09-30 03:25–03:30 UTC (2026-09-29 evening Pacific). Jeff has captured the GoDaddy zone privately and lowered only the `@` and `www` A-record TTLs to 600 s; no routing values have changed. Both authoritative nameservers returned the original Lovable IP with 600 s TTL by 2026-09-30 03:46:38 UTC. Even without the exact edit time, waiting a full old TTL from that observation gives a conservative cutover time of **no earlier than 2026-09-30 04:47 UTC (2026-09-29 9:47 PM PDT)**.
 
 ## Source and limits
 
@@ -28,7 +28,7 @@ Vercel's [domain setup guide](https://vercel.com/docs/domains/set-up-custom-doma
 |---:|---|---|---|---|---:|---|
 | 1 | Edit existing record | `@` | A | `185.158.133.1` | 600 s | **Done:** lower TTL only; keep Lovable IP. |
 | 2 | Edit existing record | `www` | A | `185.158.133.1` | 600 s | **Done:** lower TTL only; keep Lovable IP. |
-| 3 | Wait | — | — | — | At least 3600 s | Count from the later TTL edit so prior cached answers expire. Actual edit time is pending. |
+| 3 | Wait | — | — | — | At least 3600 s | Count from the later TTL edit. With its time unavailable, wait until at least **2026-09-30 04:47 UTC / 9:47 PM PDT**, one hour after both nameservers were observed serving 600 s. |
 | 4 | Edit existing record | `@` | A | `216.198.79.1` | 600 s | Replace `185.158.133.1` only after step 3; leave one apex A record. |
 | 5 | Delete existing record | `www` | A | `185.158.133.1` | — | Required because a CNAME cannot coexist with `www` A. |
 | 6 | Add record | `www` | CNAME | `2e80b9c1fab2ce73.vercel-dns-017.com` | 600 s | Add immediately after step 5. |
