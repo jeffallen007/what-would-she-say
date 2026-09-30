@@ -94,7 +94,14 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
   - Only the service role can run it; anonymous and logged-in users are blocked.
 - **Query-embedding parity:** confirm how Weaviate `nearText` embedded query text (raw text vs. any prefix).
   Match it exactly in the new path.
+  - **Confirmed on the live Weaviate 1.39.4 project:** all three collections use `text2vec-openai` with
+    `text-embedding-3-large` and the default OpenAI base URL. For five fixed queries per persona, `nearText`
+    and `nearVector` built from OpenAI's raw, case-preserved query had identical ordered top-3 IDs in
+    15/15 comparisons; lowercased queries matched only 5/15. Embed the raw prompt with no prefix or
+    lowercase transformation in the Supabase path.
 - **Parity test** `scripts/supabase-migration/parity_test.py`, using the 120 queries in `data/queries.json`:
+  - Reconstruct the exact 3,072-dimensional baseline from the retained snapshot UUIDs actually loaded in
+    Phase 2, so the approved deterministic Homer count (25,066 snapshot rows) is the comparison corpus.
   - Supabase RPC vs. the Phase 3 exact 3072 deduped baseline: mean top-3 overlap **≥ 0.95** per persona.
   - Supabase RPC vs. live Weaviate: report only; expect small diffs from dedup, backfill, and quantization.
   - Fallback rate (no context) per persona matches baseline within ±1 query.

@@ -32,3 +32,27 @@ applied separately, one session per table, **only with approval**. On Small
 compute they use 256 MB of maintenance memory, disable parallel maintenance
 workers, and set a 30-minute statement timeout for the index build. They reset
 all three settings afterward. The loader does not apply migrations.
+
+## Phase 3 parity
+
+Jeff applies `supabase/migrations/20260930202447_match_persona_docs.sql` after
+review. Before that, the exact baseline can be checked without the RPC:
+
+```sh
+python scripts/supabase-migration/parity_test.py --baseline-only
+```
+
+After the migration is applied, add `SUPABASE_SERVICE_ROLE_KEY` to the ignored
+root `.env.local` and run:
+
+```sh
+python scripts/supabase-migration/parity_test.py
+```
+
+The test uses the raw, case-preserved prompts from the fixed 120-query set. It
+compares the PostgREST RPC with exact cosine retrieval on the retained 3,072-
+dimensional snapshot vectors and read-only live Weaviate `nearText` queries.
+The report in ignored `scripts/vector-investigation/data/phase3_pgvector_parity.json`
+contains aggregate metrics only. Latency measures the HTTP RPC call, including
+network and PostgREST overhead. `--transport db` is available for a direct
+database diagnostic if the service-role HTTP key is unavailable.
