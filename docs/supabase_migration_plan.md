@@ -6,7 +6,7 @@ Inputs: `docs/vector_reduction_findings.md`, the Phase 0–4 artifacts in `scrip
 and the local Parquet snapshot.
 
 ## Locked Decisions
-- **Scope:** 56,480 rows: Barbie 274, Homer 25,068 + 37 backfill, Jesus 31,001 + 100 backfill.
+- **Scope:** 56,478 rows: Barbie 274, Homer 25,066 + 37 backfill, Jesus 31,001 + 100 backfill.
 - **Storage:** `halfvec(3072)`, `text-embedding-3-large`, cosine distance, HNSW index.
 - **Layout:** one table per persona; no character filter at query time (unreachable rows are excluded at load).
 - **Retrieval behavior:** top-3, cosine distance < 0.85. These are unchanged from live.
@@ -62,6 +62,7 @@ Migration file: `supabase/migrations/<ts>_rag_persona_tables.sql`
    - Apply the exact Phase 2 reachable + dedup rules. Reuse the investigation code; don't reimplement.
    - Bulk insert via psycopg `COPY` over the direct/session connection, not the transaction pooler.
    - Idempotent: truncate-then-load per table.
+   - **Phase 2 amendment (Jeff approved):** the earlier Homer 25,068 count came from an approximate, parallel HNSW dedup scan. Running the same investigation selection functions with one FAISS thread yielded 25,066 retained Homer snapshot rows. The loader pins FAISS to one thread and rejects any different count before loading that table.
 2. **Backfill:**
    - Embed the 137 `embedding_input` strings with `text-embedding-3-large` (3072 dims, cost under $0.01).
    - Sanity check: each backfill vector's nearest neighbor is plausible (same book/chapter, or Homer).
