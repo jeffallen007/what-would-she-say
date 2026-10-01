@@ -109,6 +109,32 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
 
 **GATE 3:** Jeff applies the migration. Codex reports parity results.
 
+### GATE 3 follow-up (2026-10-01)
+
+- The first Barbie overlap report (0.825) was a scoring error: seven of 40 queries returned no
+  results in both the exact snapshot baseline and the RPC, but the scorer counted each matching
+  fallback as zero overlap. The corrected scorer counts matching empty sets as agreement. The
+  Barbie baseline and RPC have identical ordered top-3 IDs for all 40 queries (corrected overlap
+  1.0), including seven matching fallbacks. The earlier halfvec precision diagnosis was wrong.
+- Jeff explicitly requested removal of the Barbie HNSW index. Migration
+  `20261001190942_drop_barbie_hnsw.sql` was applied; the index is absent. Exact scan preserves
+  1.0 overlap. There are no swapped Barbie items and thus no swapped-item distance gaps.
+- Direct database RPC measurements with session-local `hnsw.ef_search` (the same query setting a
+  function-level setting would supply) were run on all 40 queries per persona. The deployed RPC
+  has not been changed to pin an `ef_search` value. At 100/200/400, Homer overlap is
+  0.7833/0.8333/0.8750 and Jesus is 0.9083/0.9583/0.9750. Barbie remains 1.0. Thus 200 is
+  the lowest tested passing value for Jesus; none of the three values passes for Homer. At the
+  maximum accepted `ef_search` of 1000, Homer reaches only 0.8917. An attempted transaction-
+  scoped `ALTER FUNCTION ... SET hnsw.ef_search` was denied by Supabase's `postgres` role and
+  rolled back; no function setting was persisted. A future function-level setting needs a
+  supported implementation once the Homer recall decision is made.
+- Since Barbie now passes with identical ordered results, the conditional 15-query answer-level
+  check is not triggered. GATE 3 remains open for Homer retrieval recall; do not proceed to
+  Phase 4 yet.
+- A corrected post-drop PostgREST run of the unchanged deployed function gives Barbie 1.0,
+  Homer 0.6833, and Jesus 0.8083 overlap. These are default `ef_search` results; the tuned
+  values above are direct database RPC diagnostics, not yet pinned in the deployed function.
+
 ## Phase 4: Edge Function Swap
 - In `weaviate-chat`, add a retrieval adapter:
   - `VECTOR_BACKEND=weaviate` → existing code path, unchanged.

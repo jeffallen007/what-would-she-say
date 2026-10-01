@@ -187,7 +187,11 @@ def weaviate_live(persona: str, query: str) -> list[str]:
 
 
 def mean_overlap(reference: list[list[str]], candidate: list[list[str]]) -> float:
-    return fmean(len(set(left) & set(right)) / max(1, len(left)) for left, right in zip(reference, candidate))
+    # Two empty result sets are a matching fallback, not zero overlap.
+    return fmean(
+        1.0 if not left and not right else len(set(left) & set(right)) / max(1, len(left))
+        for left, right in zip(reference, candidate)
+    )
 
 
 def report_metrics(

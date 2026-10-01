@@ -56,3 +56,11 @@ The report in ignored `scripts/vector-investigation/data/phase3_pgvector_parity.
 contains aggregate metrics only. Latency measures the HTTP RPC call, including
 network and PostgREST overhead. `--transport db` is available for a direct
 database diagnostic if the service-role HTTP key is unavailable.
+
+The overlap scorer treats matching no-result fallbacks as agreement. For the
+Phase 3 recall follow-up, `phase3_recall_diagnostic.py` tests 100/200/400 using
+session-local `hnsw.ef_search` without changing the deployed function. Its
+latency is direct database RPC time, not PostgREST time. The index-free Barbie
+check is `phase3_barbie_diagnostic.py`; it reports only aggregate metrics and
+query numbers for any swapped IDs. Both write ignored JSON reports under the
+vector-investigation data directory.
