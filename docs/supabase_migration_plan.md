@@ -119,15 +119,15 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
 - Jeff explicitly requested removal of the Barbie HNSW index. Migration
   `20261001190942_drop_barbie_hnsw.sql` was applied; the index is absent. Exact scan preserves
   1.0 overlap. There are no swapped Barbie items and thus no swapped-item distance gaps.
-- Direct database RPC measurements with session-local `hnsw.ef_search` (the same query setting a
-  function-level setting would supply) were run on all 40 queries per persona. The deployed RPC
-  has not been changed to pin an `ef_search` value. At 100/200/400, Homer overlap is
-  0.7833/0.8333/0.8750 and Jesus is 0.9083/0.9583/0.9750. Barbie remains 1.0. Thus 200 is
-  the lowest tested passing value for Jesus; none of the three values passes for Homer. At the
-  maximum accepted `ef_search` of 1000, Homer reaches only 0.8917. An attempted transaction-
-  scoped `ALTER FUNCTION ... SET hnsw.ef_search` was denied by Supabase's `postgres` role and
-  rolled back; no function setting was persisted. A future function-level setting needs a
-  supported implementation once the Homer recall decision is made.
+- Direct database RPC measurements were run on all 40 queries per persona, using a temporary
+  `set_config('hnsw.ef_search', ..., true)` call **inside the RPC body**. Each temporary function
+  replacement was rolled back and its original definition verified. At 100/200/400, Homer
+  overlap is 0.7833/0.8417/0.8750 and Jesus is 0.9083/0.9583/0.9750. Barbie remains 1.0.
+  Thus 200 is the lowest tested passing value for Jesus; none of the three values passes for
+  Homer. At the maximum accepted `ef_search` of 1000, Homer reaches only 0.8917. A permanent
+  `ALTER FUNCTION ... SET hnsw.ef_search` was not possible with the Supabase `postgres` role
+  (`InsufficientPrivilege`); a future permanent change could use the tested in-body approach.
+  The deployed RPC has not been changed to pin an `ef_search` value.
 - Since Barbie now passes with identical ordered results, the conditional 15-query answer-level
   check is not triggered. GATE 3 remains open for Homer retrieval recall; do not proceed to
   Phase 4 yet.
