@@ -1,11 +1,18 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai?dts";
-import { ChatPromptTemplate } from "https://cdn.skypack.dev/@langchain/core/prompts?dts";
+import { ChatOpenAI } from "npm:@langchain/openai@0.3.17";
+import { ChatPromptTemplate } from "npm:@langchain/core@0.3.40/prompts";
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const weaviateUrl = Deno.env.get('WEAVIATE_URL');
 const weaviateApiKey = Deno.env.get('WEAVIATE_API_KEY');
+const vectorBackend = Deno.env.get('VECTOR_BACKEND') || 'weaviate';
+const supabaseUrl = Deno.env.get('SUPABASE_URL');
+const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+if (vectorBackend !== 'weaviate' && vectorBackend !== 'supabase') {
+  throw new Error('Invalid VECTOR_BACKEND');
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -117,6 +124,82 @@ async function queryWeaviateContext(query: string, persona: string): Promise<str
   } catch (error) {
     console.error(`Error querying Weaviate for ${persona}:`, error);
     return null;
+  }
+}
+
+// Keep the prompt exactly as received: Weaviate nearText embeds raw, case-preserved text.
+async function querySupabaseContext(query: string, persona: string): Promise<string | null> {
+  const started = Date.now();
+  let resultCount = 0;
+  let topDistance: number | null = null;
+
+  try {
+    if (!openAIApiKey || !supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Supabase retrieval configuration is incomplete');
+    }
+
+    const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-large',
+        input: query,
+        dimensions: 3072,
+        encoding_format: 'float',
+      }),
+    });
+    if (!embeddingResponse.ok) {
+      throw new Error(`Query embedding failed: HTTP ${embeddingResponse.status}`);
+    }
+    const embeddingPayload = await embeddingResponse.json();
+    const embedding: unknown = embeddingPayload?.data?.[0]?.embedding;
+    if (!Array.isArray(embedding) || embedding.length !== 3072 ||
+        !embedding.every((value: unknown) => typeof value === 'number' && Number.isFinite(value))) {
+      throw new Error('Query embedding shape is invalid');
+    }
+
+    // PostgREST needs an explicit top-level order for stable context ordering.
+    const rpcResponse = await fetch(
+      `${supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/match_persona_docs?select=content,distance&order=distance.asc`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseServiceRoleKey}`,
+          'apikey': supabaseServiceRoleKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          persona,
+          query_embedding: `[${embedding.join(',')}]`,
+          match_count: 3,
+          max_distance: 0.85,
+        }),
+      },
+    );
+    if (!rpcResponse.ok) {
+      throw new Error(`Persona retrieval failed: HTTP ${rpcResponse.status}`);
+    }
+    const rows: unknown = await rpcResponse.json();
+    if (!Array.isArray(rows) || rows.length > 3 ||
+        !rows.every((row) => row && typeof row.content === 'string' &&
+          typeof row.distance === 'number' && Number.isFinite(row.distance) && row.distance < 0.85)) {
+      throw new Error('Persona retrieval result is invalid');
+    }
+
+    resultCount = rows.length;
+    topDistance = rows.length ? rows[0].distance : null;
+    return rows.length ? rows.map((row) => row.content).join('\n\n') : null;
+  } finally {
+    console.log('Supabase retrieval:', {
+      backend: 'supabase',
+      persona,
+      result_count: resultCount,
+      top_distance: topDistance,
+      retrieval_ms: Date.now() - started,
+    });
   }
 }
 
@@ -259,17 +342,25 @@ serve(async (req) => {
 
     let context: string | null = null;
     
-    // Get relevant context from Weaviate for persona-specific responses
+    // Retrieve persona context using the configured vector backend.
     if (persona === 'jesus' || persona === 'homer' || persona === 'barbie') {
       try {
-        context = await queryWeaviateContext(prompt, persona);
-        if (context) {
-          console.log(`Using Weaviate RAG context for ${persona} persona`);
+        if (vectorBackend === 'supabase') {
+          context = await querySupabaseContext(prompt, persona);
         } else {
-          console.log(`Weaviate context not available, using basic ${persona} persona`);
+          context = await queryWeaviateContext(prompt, persona);
+          if (context) {
+            console.log(`Using Weaviate RAG context for ${persona} persona`);
+          } else {
+            console.log(`Weaviate context not available, using basic ${persona} persona`);
+          }
         }
       } catch (vectorError) {
-        console.error(`Error loading Weaviate vectorstore for ${persona}:`, vectorError);
+        if (vectorBackend === 'supabase') {
+          console.error(`Error loading Supabase vectorstore for ${persona}:`, vectorError);
+        } else {
+          console.error(`Error loading Weaviate vectorstore for ${persona}:`, vectorError);
+        }
       }
     }
 

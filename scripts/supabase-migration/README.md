@@ -70,8 +70,10 @@ After `ef_search=200` is deployed, run `phase3_homer_content_check.py` to
 compare the retained post-dedup baseline with PostgREST results by normalized
 content and record unmatched line content and exact halfvec distance gaps in
 an ignored JSON report. If content overlap remains below 0.95, run
-`phase3_homer_answer_check.py` for the 14 preidentified content misses plus one
-matching control. It uses `gpt-4o-mini` for generation and blind judging and
-stores verdicts only, never generated answers or vectors.
+`phase3_homer_answer_check.py` for all 14 content misses plus five identical-
+context controls. It generates three independent answers per condition per
+query at temperature 0.7, then judges each pair blind with randomized A/B
+order. The ignored repeated report stores verdicts only, never generated
+answers or vectors. The earlier one-generation report is superseded.
 PostgREST callers explicitly request `order=distance.asc`, because a top-level
 HTTP response may not preserve the order inside the SQL function.

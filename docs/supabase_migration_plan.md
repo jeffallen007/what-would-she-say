@@ -151,20 +151,28 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
   None of the unmatched RPC items is a backfill row. Exact halfvec distance gaps, RPC item
   minus baseline item, range from 0.001336 to 0.076425; 13/19 are at least 0.01. The
   ignored `phase3_homer_content_check.json` records the content of each unmatched pair.
-- Because content overlap is below 0.95, the conditional 15-query blind answer check ran on
-  all 14 mismatch queries plus the first matching control. Generation and judging used
-  `gpt-4o-mini`; generation used temperature 0.7 and 325 tokens, judging temperature 0.
-  The RPC won 7, tied 3, and lost 5 (66.67% tie-or-better). Among mismatch queries alone,
-  it won 7, tied 3, and lost 4 (71.43% tie-or-better). The identical-context control was
-  judged a loss, illustrating generation/judge noise. This result does not meet the earlier
-  90% answer-level criterion. GATE 3 remains open; no Homer index change or Phase 4 work yet.
+- The first 15-query, one-generation answer check is **invalid for retrieval-quality inference**:
+  its single identical-context control lost, exposing generation/judge variance. Jeff requested
+  three independent generations per condition per query and five matching-context controls.
+  The repeated check used all 14 mismatch queries plus five controls, for 42 mismatch and 15
+  control blind pairs. Both sides of every control received byte-for-byte identical context.
+  `gpt-4o-mini` generation remained at temperature 0.7 and 325 tokens; judging used temperature
+  0 with randomized A/B placement. Controls: 7 pseudo-RPC wins, 5 ties, 3 losses (33.33% tie
+  rate, 20.00% loss rate). Mismatches: 20 RPC wins, 7 ties, 15 losses (16.67% tie rate, 35.71%
+  loss rate). Query-cluster bootstrap 95% intervals for mismatch minus control are
+  [-52.38, +12.86] percentage points in tie rate and [-2.38, +34.76] points in loss rate.
+  Neither difference is resolved by this small sample; equivalence is not proven. Under Jeff's
+  amended quality-ground acceptance rule, Homer passes GATE 3 without an index rebuild. The
+  95% top-3 overlap rule is retained as a diagnostic rather than a required gate for Homer.
+  The ignored `phase3_homer_answer_check_repeated.json` contains verdicts and group labels only.
 - One Homer PostgREST response placed two nearly tied distances out of order despite the RPC's
   internal ordering. An explicit `order=distance.asc` on the HTTP RPC request corrected it.
   Phase 4's PostgREST client must apply that order before joining context.
 - The final deployed PostgREST parity run at pinned `ef_search=200` gives exact-baseline top-3
   overlap Barbie 1.0, Homer 0.8417, Jesus 0.9583; fallback counts are 7/0/0 on both sides.
   HTTP RPC latency p50/p95 is 148.8/184.6 ms, 154.4/199.1 ms, and 153.7/178.8 ms
-  respectively. The overall parity gate still fails on Homer.
+  respectively. The original ID-overlap threshold still fails on Homer, with the quality-ground
+  exception above accepted for GATE 3.
 
 ## Phase 4: Edge Function Swap
 - In `weaviate-chat`, add a retrieval adapter:
@@ -179,6 +187,27 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
 - Smoke test with `supabase` in a non-prod invocation, or by flipping briefly, depending on the deploy path.
 
 **GATE 4:** PR review, merge, deploy with `weaviate` active.
+
+### Phase 4 implementation note (2026-10-01)
+
+- `weaviate-chat` now defaults `VECTOR_BACKEND` to `weaviate`; the `supabase` branch embeds the
+  raw, case-preserved query with `text-embedding-3-large` at 3072 dimensions, calls the
+  service-role `match_persona_docs` PostgREST endpoint with `order=distance.asc`, and joins
+  returned content in the existing `\n\n` format. The existing Weaviate retrieval function,
+  persona prompts, model settings, response shape, and prompt/response/context logs remain.
+  New Supabase retrieval logging contains backend, persona, result count, top distance, and
+  elapsed milliseconds only.
+- `weaviate-warmup` returns a successful no-op under `supabase`; it defaults to its existing
+  Weaviate behavior. Read-only CLI secret-name inspection confirms `OPENAI_API_KEY`,
+  `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `WEAVIATE_URL`, and `WEAVIATE_API_KEY` are
+  available. `VECTOR_BACKEND` is absent, so the deployed default stays `weaviate`.
+- The original Skypack LangChain import URLs now return HTTP 404. The chat function imports
+  compatible pinned npm packages `@langchain/openai@0.3.17` and `@langchain/core@0.3.40`;
+  no prompt or model invocation code changed. Deno type-check passed. Local Deno smoke tests
+  returned HTTP 200 for Supabase retrieval and generation on all three personas, with
+  retrieval counts 2/3/3; the Supabase warmup was a no-op, and the default Weaviate chat
+  path returned HTTP 200 with a successful Weaviate query. These tests did not deploy an Edge
+  Function or change production secrets.
 
 ## Phase 5: Cutover + Soak
 1. **[Jeff]** Set `VECTOR_BACKEND=supabase`.
