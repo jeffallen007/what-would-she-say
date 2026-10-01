@@ -65,3 +65,13 @@ restored. Its latency is direct database RPC time, not PostgREST time. The
 index-free Barbie check is `phase3_barbie_diagnostic.py`; it reports only
 aggregate metrics and query numbers for any swapped IDs. Both write ignored
 JSON reports under the vector-investigation data directory.
+
+After `ef_search=200` is deployed, run `phase3_homer_content_check.py` to
+compare the retained post-dedup baseline with PostgREST results by normalized
+content and record unmatched line content and exact halfvec distance gaps in
+an ignored JSON report. If content overlap remains below 0.95, run
+`phase3_homer_answer_check.py` for the 14 preidentified content misses plus one
+matching control. It uses `gpt-4o-mini` for generation and blind judging and
+stores verdicts only, never generated answers or vectors.
+PostgREST callers explicitly request `order=distance.asc`, because a top-level
+HTTP response may not preserve the order inside the SQL function.

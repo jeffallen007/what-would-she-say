@@ -135,6 +135,37 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
   Homer 0.6833, and Jesus 0.8083 overlap. These are default `ef_search` results; the tuned
   values above are direct database RPC diagnostics, not yet pinned in the deployed function.
 
+### GATE 3 Homer content follow-up (2026-10-01)
+
+- Jeff approved pinning `ef_search=200` in the deployed RPC. Migration
+  `20261001200245_pin_match_persona_ef_search.sql` was applied and the service-role-only grant
+  verified. The function uses transaction-local `set_config` inside its body; Supabase's
+  `postgres` role denied `ALTER FUNCTION ... SET` for this extension GUC.
+- The exact 3,072-dimensional Homer baseline is **post-dedup**: it intersects the local Parquet
+  snapshot with the 25,066 retained snapshot UUIDs loaded into `rag_homer`. It excludes the
+  removed duplicate UUIDs and the 37 new backfill rows. Thus removed duplicates cannot
+  directly cause baseline-ID mismatches.
+- The `ef_search=200` PostgREST run scored 0.8417 by both ID and normalized-content top-3
+  overlap. Normalization is the loader's NFKC, lowercase, punctuation removal, and collapsed
+  whitespace. Fourteen of 40 queries have genuine content differences (19 swapped pairs).
+  None of the unmatched RPC items is a backfill row. Exact halfvec distance gaps, RPC item
+  minus baseline item, range from 0.001336 to 0.076425; 13/19 are at least 0.01. The
+  ignored `phase3_homer_content_check.json` records the content of each unmatched pair.
+- Because content overlap is below 0.95, the conditional 15-query blind answer check ran on
+  all 14 mismatch queries plus the first matching control. Generation and judging used
+  `gpt-4o-mini`; generation used temperature 0.7 and 325 tokens, judging temperature 0.
+  The RPC won 7, tied 3, and lost 5 (66.67% tie-or-better). Among mismatch queries alone,
+  it won 7, tied 3, and lost 4 (71.43% tie-or-better). The identical-context control was
+  judged a loss, illustrating generation/judge noise. This result does not meet the earlier
+  90% answer-level criterion. GATE 3 remains open; no Homer index change or Phase 4 work yet.
+- One Homer PostgREST response placed two nearly tied distances out of order despite the RPC's
+  internal ordering. An explicit `order=distance.asc` on the HTTP RPC request corrected it.
+  Phase 4's PostgREST client must apply that order before joining context.
+- The final deployed PostgREST parity run at pinned `ef_search=200` gives exact-baseline top-3
+  overlap Barbie 1.0, Homer 0.8417, Jesus 0.9583; fallback counts are 7/0/0 on both sides.
+  HTTP RPC latency p50/p95 is 148.8/184.6 ms, 154.4/199.1 ms, and 153.7/178.8 ms
+  respectively. The overall parity gate still fails on Homer.
+
 ## Phase 4: Edge Function Swap
 - In `weaviate-chat`, add a retrieval adapter:
   - `VECTOR_BACKEND=weaviate` → existing code path, unchanged.

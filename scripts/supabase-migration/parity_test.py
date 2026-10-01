@@ -111,7 +111,7 @@ def rpc_http(persona: str, vector: np.ndarray) -> tuple[list[str], float]:
     if not url or not key:
         raise RuntimeError("SUPABASE_URL/project-ref and SUPABASE_SERVICE_ROLE_KEY are required")
     request = urllib.request.Request(
-        url.rstrip("/") + "/rest/v1/rpc/match_persona_docs",
+        url.rstrip("/") + "/rest/v1/rpc/match_persona_docs?order=distance.asc",
         data=json.dumps({
             "persona": persona,
             "query_embedding": vector_literal(vector),
