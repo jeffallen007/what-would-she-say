@@ -3,6 +3,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const weaviateUrl = Deno.env.get('WEAVIATE_URL');
 const weaviateApiKey = Deno.env.get('WEAVIATE_API_KEY');
+const vectorBackend = Deno.env.get('VECTOR_BACKEND') || 'weaviate';
+
+if (vectorBackend !== 'weaviate' && vectorBackend !== 'supabase') {
+  throw new Error('Invalid VECTOR_BACKEND');
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -78,6 +83,12 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (vectorBackend === 'supabase') {
+    return new Response(JSON.stringify({ success: true, cached: false }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
