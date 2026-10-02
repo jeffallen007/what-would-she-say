@@ -218,6 +218,38 @@ Migration file: `supabase/migrations/<ts>_match_persona_docs.sql`
 
 **GATE 5:** Jeff approves decommissioning.
 
+### Phase 5 status (2026-10-02)
+
+- **Cutover live:** Jeff set the project-wide Edge Function secret `VECTOR_BACKEND=supabase`
+  and confirmed a live Barbie retrieval log with `backend: "supabase"`, 3 results,
+  `top_distance` 0.75–0.79, and `retrieval_ms` 545 on a cold invocation then 255 warm.
+  The Supabase CLI reports the secret's `updated_at` as **2026-10-02 00:46:48 UTC**
+  (**2026-10-01 17:46:48 PDT**). This is the recorded secret update time; the exact
+  first Supabase-backed request time was not recorded.
+- **Production smoke test passed:** 5 synthetic prompts per persona were sent to the same
+  `weaviate-chat` production endpoint used by the frontend. All 15 returned HTTP 200
+  with nonempty, persona-appropriate responses: Barbie 5/5 (2.0–3.0 s end to end),
+  Homer 5/5 (2.1–2.5 s), and Jesus 5/5 (2.4–3.2 s). No HTTP error responses occurred
+  in this sample. `weaviate-warmup` returned HTTP 200 with `success: true` and
+  `cached: false` for each persona, matching its Supabase no-op path.
+- **Log verification still open:** The Barbie retrieval metadata above was reported by
+  Jeff. Codex could not read production function logs through the Management API
+  (HTTP 401), so Homer and Jesus `Supabase retrieval:` log entries, result counts,
+  and retrieval latencies have not been independently verified. Jeff will monitor
+  the `weaviate-chat` logs; do not infer retrieval counts from successful chat responses.
+- **Soak open / GATE 5 not approved:** Continue the planned 2–3 day soak. Check Edge
+  Function errors, retrieval latency, and Supabase CPU/RAM/swap. Keep Weaviate live
+  and read-only for rollback; setting `VECTOR_BACKEND=weaviate` restores the previous
+  retrieval path without redeploying. Do not decommission until Jeff explicitly
+  approves GATE 5.
+- **Phase 6 remains:** After GATE 5 approval, Jeff confirms the off-laptop snapshot
+  and cancels Weaviate. Then make a cleanup PR to remove the Weaviate adapter,
+  backend flag, and Weaviate secrets; make warmup a permanent no-op or remove it
+  with its frontend call; replace generation scripts with the validated Supabase
+  loader; and update both READMEs. Renaming `weaviate-chat` is optional and needs
+  a separate frontend change. After cancellation, rollback requires reloading
+  Supabase from the snapshot.
+
 ## Phase 6: Decommission + Cleanup
 1. **[Jeff]** Confirm the off-laptop snapshot is present, then cancel Weaviate.
    Post-cancel rollback = reload Supabase from the snapshot.
